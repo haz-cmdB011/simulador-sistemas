@@ -1,23 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import {
-  TrendingUp,
-  DollarSign,
-  Percent,
-  Calendar,
-  Layers,
-  Activity,
-  ArrowUpRight,
-  Sparkles,
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './components/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+import { 
+  TrendingUp, 
+  DollarSign, 
+  Percent, 
+  Calendar, 
+  Layers, 
+  Activity, 
+  ArrowUpRight, 
+  Sparkles, 
   RefreshCw,
   AlertCircle,
   PiggyBank,
   CheckCircle2,
-  Table
+  Table,
+  LogOut,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  User as UserIcon,
+  Sliders,
+  Database,
+  Download,
+  Info
 } from 'lucide-react';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
-function App() {
+function SimuladorContent() {
+  const { user, logout, hasRole } = useAuth();
+
   const [formData, setFormData] = useState({
     inversionInicial: 5000,
     tasaInteres: 8, // Expresado en % para el usuario
@@ -30,8 +44,9 @@ function App() {
   const [error, setError] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [serverOnline, setServerOnline] = useState(null);
+  const [adminLogs, setAdminLogs] = useState([]);
 
-  // Comprobar salud del servidor backend al montar
+  // Comprobar salud del servidor backend
   const checkHealth = async () => {
     try {
       const response = await fetch(`${API_URL}/api/health`);
@@ -69,7 +84,6 @@ function App() {
     setError(null);
 
     try {
-      // Convertir tasa porcentual (ej. 8% -> 0.08)
       const payload = {
         inversionInicial: Number(formData.inversionInicial),
         tasaInteres: Number(formData.tasaInteres) / 100,
@@ -94,11 +108,25 @@ function App() {
 
       setResultado(data.data);
       setServerOnline(true);
+
+      // Si es admin, registrar en bitácora local de auditoría
+      if (user?.rol === 'admin') {
+        setAdminLogs((prev) => [
+          {
+            id: Date.now(),
+            fecha: new Date().toLocaleTimeString(),
+            usuario: user.email,
+            monto: data.data.resumen.montoFinal,
+            tipo: formData.tipo
+          },
+          ...prev.slice(0, 9)
+        ]);
+      }
     } catch (err) {
       console.error('Error al simular:', err);
       setError(
         err.message.includes('Failed to fetch')
-          ? 'No se pudo conectar con el servidor backend en Render. Asegúrate de que el servicio esté activo.'
+          ? 'No se pudo conectar con el servidor backend en Render. Asegúrate de que esté activo.'
           : err.message
       );
     } finally {
@@ -118,54 +146,186 @@ function App() {
     }).format(val || 0);
   };
 
+  const getRoleBadge = () => {
+    if (user?.rol === 'admin') {
+      return (
+        <div className="user-role-pill role-admin">
+          <ShieldAlert size={14} />
+          <span>Administrador (Nivel 3)</span>
+        </div>
+      );
+    }
+    if (user?.rol === 'operador') {
+      return (
+        <div className="user-role-pill role-operador">
+          <ShieldCheck size={14} />
+          <span>Operador (Nivel 2)</span>
+        </div>
+      );
+    }
+    return (
+      <div className="user-role-pill role-usuario">
+        <UserIcon size={14} />
+        <span>Usuario (Nivel 1)</span>
+      </div>
+    );
+  };
+
   return (
     <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
+      {/* Top User Session Navigation */}
+      <div className="user-session-bar glass-card">
+        <div className="user-profile-info">
+          <div className="user-avatar">
+            {user?.nombre?.charAt(0).toUpperCase() || 'U'}
+          </div>
+          <div>
+            <div className="user-name-row">
+              <span className="user-display-name">{user?.nombre}</span>
+              {getRoleBadge()}
+            </div>
+            <span className="user-email-text">{user?.email}</span>
+          </div>
+        </div>
+
+        <div className="user-actions">
+          <div className="status-badge">
+            <div
+              className={`status-dot ${
+                serverOnline === null
+                  ? 'checking'
+                  : serverOnline
+                  ? 'online'
+                  : 'offline'
+              }`}
+            />
+            <span>
+              {serverOnline === null
+                ? 'Verificando API...'
+                : serverOnline
+                ? 'Backend API Conectado'
+                : 'Backend Desconectado'}
+            </span>
+            <button
+              onClick={checkHealth}
+              title="Reintentar conexión"
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            >
+              <RefreshCw size={13} />
+            </button>
+          </div>
+
+          <button onClick={logout} className="btn-logout" title="Cerrar Sesión">
+            <LogOut size={16} />
+            <span>Salir</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main App Header */}
+      <header className="app-header" style={{ marginTop: '1.5rem' }}>
         <div className="brand-area">
           <div className="brand-icon">
             <TrendingUp size={28} />
           </div>
           <div>
             <h1 className="brand-title">Simulador de Sistemas</h1>
-            <p className="brand-subtitle">Cálculo interactivo de proyecciones y rendimientos</p>
+            <p className="brand-subtitle">
+              {user?.rol === 'admin'
+                ? 'Panel de Control con privilegios de Administrador'
+                : user?.rol === 'operador'
+                ? 'Consola de Operaciones y Simulación de Sistemas'
+                : 'Simulación y cálculo de proyecciones financieras'}
+            </p>
           </div>
-        </div>
-
-        <div className="status-badge">
-          <div
-            className={`status-dot ${serverOnline === null
-                ? 'checking'
-                : serverOnline
-                  ? 'online'
-                  : 'offline'
-              }`}
-          />
-          <span>
-            {serverOnline === null
-              ? 'Verificando API...'
-              : serverOnline
-                ? 'Backend API Conectado'
-                : 'Backend API Desconectado'}
-          </span>
-          <button
-            onClick={checkHealth}
-            title="Reintentar conexión"
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-          >
-            <RefreshCw size={13} />
-          </button>
         </div>
       </header>
 
-      {/* Main Content Grid */}
+      {/* Admin Protected Panel (Exclusivo para Administradores) */}
+      {hasRole('admin') && (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <div className="glass-card admin-dashboard-card" style={{ marginBottom: '2rem' }}>
+            <div className="card-header">
+              <h2 className="card-title" style={{ color: 'var(--primary-light)' }}>
+                <ShieldAlert size={22} />
+                Módulo Exclusivo de Administración
+              </h2>
+              <span className="admin-status-tag">Acceso Total</span>
+            </div>
+
+            <div className="admin-grid-features">
+              <div className="admin-feature-box">
+                <div className="feature-icon">
+                  <Database size={20} color="var(--secondary)" />
+                </div>
+                <div>
+                  <h4>Base de Datos Supabase</h4>
+                  <p>Persistencia activa en tabla <code>simulaciones</code></p>
+                </div>
+              </div>
+
+              <div className="admin-feature-box">
+                <div className="feature-icon">
+                  <Sliders size={20} color="var(--primary-light)" />
+                </div>
+                <div>
+                  <h4>Control de Parámetros</h4>
+                  <p>Límites y tasas configurables para el sistema</p>
+                </div>
+              </div>
+
+              <div className="admin-feature-box">
+                <div className="feature-icon">
+                  <Activity size={20} color="var(--accent)" />
+                </div>
+                <div>
+                  <h4>Auditoría de Cálculos</h4>
+                  <p>{adminLogs.length} simulaciones registradas en la sesión</p>
+                </div>
+              </div>
+            </div>
+
+            {adminLogs.length > 0 && (
+              <div className="admin-audit-table" style={{ marginTop: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  Últimos cálculos auditados:
+                </h4>
+                <div className="table-wrapper">
+                  <table className="sim-table">
+                    <thead>
+                      <tr>
+                        <th>Hora</th>
+                        <th>Usuario</th>
+                        <th>Tipo</th>
+                        <th>Monto Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminLogs.map((log) => (
+                        <tr key={log.id}>
+                          <td>{log.fecha}</td>
+                          <td>{log.usuario}</td>
+                          <td><span className="role-level-pill">{log.tipo}</span></td>
+                          <td className="gain-positive">{formatCurrency(log.monto)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </ProtectedRoute>
+      )}
+
+      {/* Main Simulator Grid */}
       <div className="main-grid">
         {/* Formulario */}
         <div className="glass-card">
           <div className="card-header">
             <h2 className="card-title">
               <Sparkles size={20} color="var(--primary-light)" />
-              Parámetros
+              Parámetros de Simulación
             </h2>
           </div>
 
@@ -216,7 +376,7 @@ function App() {
             {/* Tasa de Interés */}
             <div className="form-group">
               <label className="form-label" htmlFor="tasaInteres">
-                <span>Tasa de Interés por Período (%)</span>
+                <span>Tasa de Interés (%)</span>
                 <span className="form-hint">Ejemplo: 8%</span>
               </label>
               <div className="input-wrapper">
@@ -286,7 +446,7 @@ function App() {
               {loading ? (
                 <>
                   <RefreshCw size={18} className="spin" />
-                  Calculando Simulación...
+                  Calculando...
                 </>
               ) : (
                 <>
@@ -448,6 +608,39 @@ function App() {
       </div>
     </div>
   );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
+  );
+}
+
+function AuthGate() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="auth-wrapper">
+        <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+          <RefreshCw size={28} className="spin" style={{ color: 'var(--primary)' }} />
+          <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
+            Cargando sesión y roles...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no está autenticado, mostrar pantalla de Login como ante sala
+  if (!user) {
+    return <Login />;
+  }
+
+  // Si está autenticado, mostrar el panel según el rol
+  return <SimuladorContent />;
 }
 
 export default App;
