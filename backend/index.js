@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Ruta raíz
+app.get('/', (req, res) => res.json({ status: 'OK', mensaje: 'API del Simulador funcionando' }));
+
 // Ruta GET /api/health
 app.get('/api/health', (req, res) => {
   res.json({
