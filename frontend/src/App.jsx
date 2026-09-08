@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Percent, 
-  Calendar, 
-  Layers, 
-  Activity, 
-  ArrowUpRight, 
-  Sparkles, 
+import {
+  TrendingUp,
+  DollarSign,
+  Percent,
+  Calendar,
+  Layers,
+  Activity,
+  ArrowUpRight,
+  Sparkles,
   RefreshCw,
   AlertCircle,
   PiggyBank,
@@ -15,7 +15,7 @@ import {
   Table
 } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://simulador-backend-pt4w.onrender.com/';
 
 function App() {
   const [formData, setFormData] = useState({
@@ -134,20 +134,19 @@ function App() {
 
         <div className="status-badge">
           <div
-            className={`status-dot ${
-              serverOnline === null
+            className={`status-dot ${serverOnline === null
                 ? 'checking'
                 : serverOnline
-                ? 'online'
-                : 'offline'
-            }`}
+                  ? 'online'
+                  : 'offline'
+              }`}
           />
           <span>
             {serverOnline === null
               ? 'Verificando API...'
               : serverOnline
-              ? 'Backend API Conectado (3000)'
-              : 'Backend API Desconectado'}
+                ? 'Backend API Conectado (3000)'
+                : 'Backend API Desconectado'}
           </span>
           <button
             onClick={checkHealth}
