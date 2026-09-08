@@ -13,8 +13,8 @@ app.use(express.json());
 // Ruta raíz
 app.get('/', (req, res) => res.json({ status: 'OK', mensaje: 'API del Simulador funcionando' }));
 
-// Ruta GET /api/health (y /health)
-app.get(['/api/health', '/health'], (req, res) => {
+// Ruta GET /api/health
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'Servidor backend funcionando correctamente',
@@ -25,8 +25,8 @@ app.get(['/api/health', '/health'], (req, res) => {
   });
 });
 
-// Ruta POST /api/simular (y /simular)
-app.post(['/api/simular', '/simular'], async (req, res) => {
+// Ruta POST /api/simular
+app.post('/api/simular', async (req, res) => {
   try {
     const {
       inversionInicial = 1000,
