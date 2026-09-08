@@ -15,7 +15,7 @@ import {
   Table
 } from 'lucide-react';
 
-const API_BASE_URL = 'https://simulador-backend-pt4w.onrender.com/';
+const API_BASE_URL = 'https://simulador-backend-pt4w.onrender.com';
 
 function App() {
   const [formData, setFormData] = useState({
@@ -34,7 +34,7 @@ function App() {
   // Comprobar salud del servidor backend al montar
   const checkHealth = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`);
+      const response = await fetch(`${API_BASE_URL}/api/health`);
       if (response.ok) {
         setServerOnline(true);
       } else {
@@ -78,7 +78,7 @@ function App() {
         aportacionMensual: Number(formData.aportacionMensual || 0)
       };
 
-      const response = await fetch(`${API_BASE_URL}/simular`, {
+      const response = await fetch(`${API_BASE_URL}/api/simular`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -98,7 +98,7 @@ function App() {
       console.error('Error al simular:', err);
       setError(
         err.message.includes('Failed to fetch')
-          ? 'No se pudo conectar con el servidor backend en http://localhost:3000. Asegúrate de que esté iniciado.'
+          ? 'No se pudo conectar con el servidor backend en Render. Asegúrate de que el servicio esté activo.'
           : err.message
       );
     } finally {
@@ -145,7 +145,7 @@ function App() {
             {serverOnline === null
               ? 'Verificando API...'
               : serverOnline
-                ? 'Backend API Conectado (3000)'
+                ? 'Backend API Conectado'
                 : 'Backend API Desconectado'}
           </span>
           <button
