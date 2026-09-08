@@ -13,7 +13,7 @@ app.use(express.json());
 // Ruta GET /api/health
 app.get('/api/health', (req, res) => {
   res.json({
-    status: 'ok',
+    status: 'OK',
     message: 'Servidor backend funcionando correctamente',
     supabaseConnected: !!supabase,
     timestamp: new Date().toISOString(),

@@ -15,7 +15,7 @@ import {
   Table
 } from 'lucide-react';
 
-const API_BASE_URL = 'https://simulador-backend-pt4w.onrender.com';
+const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
 function App() {
   const [formData, setFormData] = useState({
@@ -34,7 +34,7 @@ function App() {
   // Comprobar salud del servidor backend al montar
   const checkHealth = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/health`);
+      const response = await fetch(`${API_URL}/api/health`);
       if (response.ok) {
         setServerOnline(true);
       } else {
@@ -78,7 +78,7 @@ function App() {
         aportacionMensual: Number(formData.aportacionMensual || 0)
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/simular`, {
+      const response = await fetch(`${API_URL}/api/simular`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
