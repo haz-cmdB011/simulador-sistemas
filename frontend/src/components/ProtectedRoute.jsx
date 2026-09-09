@@ -1,15 +1,22 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Lock, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, Lock } from 'lucide-react';
 
 /**
- * Componente que protege vistas según el rol del usuario autenticado.
+ * Componente que protege vistas según el rol y jerarquía del usuario autenticado.
  *
- * @param {Array<string>} allowedRoles - Lista de roles autorizados (ej. ['admin', 'operador'])
- * @param {number} minLevel - Nivel mínimo de jerarquía (1: Usuario, 2: Operador, 3: Admin)
+ * Jerarquía:
+ * - Nivel 1: desarrollador (Control total y exclusivo para el Creador - peso 4)
+ * - Nivel 2: administrativo (Visualización y gestión del sistema - peso 3)
+ * - Nivel 3: operador (Ejecución y captura operacional estándar - peso 2)
+ * - Nivel 4: usuario (Acceso básico de consulta y perfil personal - peso 1)
+ *
+ * @param {Array<string>} allowedRoles - Lista de roles autorizados
+ * @param {number} minWeight - Peso mínimo de jerarquía (1 a 4)
  * @param {React.ReactNode} children - Vista protegida
+ * @param {React.ReactNode} fallback - Componente alternativo en caso de rechazo
  */
-export const ProtectedRoute = ({ allowedRoles = [], minLevel, children, fallback }) => {
+export const ProtectedRoute = ({ allowedRoles = [], minWeight, children, fallback }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -36,10 +43,10 @@ export const ProtectedRoute = ({ allowedRoles = [], minLevel, children, fallback
   const roleAllowed =
     allowedRoles.length === 0 || allowedRoles.includes(user.rol);
 
-  // Comprobar nivel mínimo de prioridad
-  const levelAllowed = minLevel ? (user.nivel_prioridad || 1) >= minLevel : true;
+  // Comprobar peso de jerarquía
+  const weightAllowed = minWeight ? (user.peso || 1) >= minWeight : true;
 
-  if (!roleAllowed || !levelAllowed) {
+  if (!roleAllowed || !weightAllowed) {
     if (fallback) return fallback;
 
     return (
@@ -49,10 +56,10 @@ export const ProtectedRoute = ({ allowedRoles = [], minLevel, children, fallback
         </div>
         <h3>Permisos Insuficientes</h3>
         <p>
-          Tu rol actual es <strong>{user.rol?.toUpperCase()}</strong> (Nivel {user.nivel_prioridad}).
+          Tu rol actual es <strong>{user.rol?.toUpperCase()}</strong> (Nivel {user.nivel || 4}).
         </p>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Este módulo requiere rol: {allowedRoles.join(' o ') || `Nivel ${minLevel}`}.
+          Este módulo requiere rol: {allowedRoles.join(' o ') || `Jerarquía de peso ${minWeight}`}.
         </p>
       </div>
     );

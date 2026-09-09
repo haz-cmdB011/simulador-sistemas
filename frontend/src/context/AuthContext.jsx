@@ -3,11 +3,40 @@ import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext(null);
 
-// Mapeo de jerarquía y niveles de prioridad
+// Mapeo de jerarquía oficial (Nivel 1 es el más alto y exclusivo para el Creador)
 export const ROLE_HIERARCHY = {
-  admin: { label: 'Administrador', nivel: 3, badgeColor: '#818cf8', icon: 'ShieldAlert' },
-  operador: { label: 'Operador', nivel: 2, badgeColor: '#06b6d4', icon: 'ShieldCheck' },
-  usuario: { label: 'Usuario Estándar', nivel: 1, badgeColor: '#10b981', icon: 'User' }
+  desarrollador: { 
+    label: 'Desarrollador', 
+    nivel: 1, 
+    peso: 4, 
+    badgeColor: '#ec4899', 
+    icon: 'Terminal',
+    descripcion: 'Control total para eliminar y editar cualquier perfil, registro o dato en la base de datos'
+  },
+  administrativo: { 
+    label: 'Administrativo', 
+    nivel: 2, 
+    peso: 3, 
+    badgeColor: '#818cf8', 
+    icon: 'ShieldAlert',
+    descripcion: 'Visualización de perfiles de usuario y gestión/lectura de las acciones a realizar en el sistema'
+  },
+  operador: { 
+    label: 'Operador', 
+    nivel: 3, 
+    peso: 2, 
+    badgeColor: '#06b6d4', 
+    icon: 'ShieldCheck',
+    descripcion: 'Ejecución y captura operacional estándar'
+  },
+  usuario: { 
+    label: 'Usuario', 
+    nivel: 4, 
+    peso: 1, 
+    badgeColor: '#10b981', 
+    icon: 'User',
+    descripcion: 'Acceso básico de consulta y perfil personal'
+  }
 };
 
 export const AuthProvider = ({ children }) => {
@@ -66,15 +95,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const extractAndSetUser = (supabaseUser) => {
-    const rol = supabaseUser.user_metadata?.rol || 'usuario';
-    const nivel_prioridad = ROLE_HIERARCHY[rol]?.nivel || 1;
+    const rawRol = supabaseUser.user_metadata?.rol || 'usuario';
+    // Mapear posible rol anterior 'admin' al nuevo 'desarrollador' o 'administrativo'
+    const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
+    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
     
     const formattedUser = {
       id: supabaseUser.id,
       email: supabaseUser.email,
       nombre: supabaseUser.user_metadata?.nombre || supabaseUser.email.split('@')[0],
       rol,
-      nivel_prioridad,
+      nivel: hierarchyInfo.nivel,
+      peso: hierarchyInfo.peso,
       token: session?.access_token || null
     };
 
@@ -101,24 +133,29 @@ export const AuthProvider = ({ children }) => {
         extractAndSetUser(data.user);
         return { success: true, user: data.user };
       } catch (error) {
-        // Si falla en Supabase y es una prueba local, verificar demo fallback
         console.warn('[Supabase Auth] Falló autenticación remota:', error.message);
       }
     }
 
-    // Modo local / Fallback para pruebas rápidas
-    const rol = email.toLowerCase().includes('admin') 
-      ? 'admin' 
-      : email.toLowerCase().includes('operador') 
-      ? 'operador' 
+    // Modo local / Fallback para desarrollo
+    const emailLower = email.toLowerCase();
+    const rol = (emailLower.includes('desarrollador') || emailLower.includes('dev'))
+      ? 'desarrollador'
+      : (emailLower.includes('admin') || emailLower.includes('administrativo'))
+      ? 'administrativo'
+      : emailLower.includes('operador')
+      ? 'operador'
       : 'usuario';
+
+    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
 
     const localUser = {
       id: `usr_${Date.now()}`,
       email,
       nombre: email.split('@')[0],
       rol,
-      nivel_prioridad: ROLE_HIERARCHY[rol]?.nivel || 1,
+      nivel: hierarchyInfo.nivel,
+      peso: hierarchyInfo.peso,
       token: `mock_jwt_token_${Date.now()}`
     };
 
@@ -128,7 +165,7 @@ export const AuthProvider = ({ children }) => {
     return { success: true, user: localUser };
   };
 
-  // Registro de nuevo usuario
+  // Registro de nuevo usuario con rol asignado
   const signUp = async (email, password, nombre, rol = 'usuario') => {
     setLoading(true);
 
@@ -158,12 +195,14 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Fallback local
+    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
     const localUser = {
       id: `usr_${Date.now()}`,
       email,
       nombre: nombre || email.split('@')[0],
       rol,
-      nivel_prioridad: ROLE_HIERARCHY[rol]?.nivel || 1,
+      nivel: hierarchyInfo.nivel,
+      peso: hierarchyInfo.peso,
       token: `mock_jwt_token_${Date.now()}`
     };
 
@@ -187,34 +226,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('sim_user');
   };
 
-  // Acceso rápido de demostración
-  const demoLogin = (rol = 'admin') => {
-    const demoEmails = {
-      admin: 'admin@sistema.com',
-      operador: 'operador@sistema.com',
-      usuario: 'usuario@sistema.com'
-    };
-
-    const names = {
-      admin: 'Administrador General',
-      operador: 'Operador de Sistemas',
-      usuario: 'Usuario Inversionista'
-    };
-
-    const demoUser = {
-      id: `demo_${rol}_${Date.now()}`,
-      email: demoEmails[rol] || `${rol}@sistema.com`,
-      nombre: names[rol] || rol,
-      rol,
-      nivel_prioridad: ROLE_HIERARCHY[rol]?.nivel || 1,
-      token: `demo_token_${rol}`
-    };
-
-    setUser(demoUser);
-    localStorage.setItem('sim_user', JSON.stringify(demoUser));
-  };
-
-  // Comprobación de roles y jerarquías
+  // Comprobación de roles específicos
   const hasRole = (allowedRoles = []) => {
     if (!user) return false;
     if (Array.isArray(allowedRoles)) {
@@ -223,10 +235,18 @@ export const AuthProvider = ({ children }) => {
     return user.rol === allowedRoles;
   };
 
-  const canAccess = (minLevel = 1) => {
+  // Comprobación de nivel de jerarquía (por peso: 4 Desarrollador > 3 Administrativo > 2 Operador > 1 Usuario)
+  const canAccessMinWeight = (minWeight = 1) => {
     if (!user) return false;
-    return (user.nivel_prioridad || 1) >= minLevel;
+    return (user.peso || 1) >= minWeight;
   };
+
+  // Helper flags de permisos granulares
+  const canDelete = user?.rol === 'desarrollador';
+  const canEditCritical = user?.rol === 'desarrollador';
+  const isDesarrollador = user?.rol === 'desarrollador';
+  const isAdministrativo = user?.rol === 'administrativo' || isDesarrollador;
+  const isOperador = user?.rol === 'operador' || isAdministrativo;
 
   return (
     <AuthContext.Provider
@@ -237,9 +257,13 @@ export const AuthProvider = ({ children }) => {
         login,
         signUp,
         logout,
-        demoLogin,
         hasRole,
-        canAccess,
+        canAccessMinWeight,
+        canDelete,
+        canEditCritical,
+        isDesarrollador,
+        isAdministrativo,
+        isOperador,
         rolesHierarchy: ROLE_HIERARCHY
       }}
     >

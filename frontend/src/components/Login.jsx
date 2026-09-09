@@ -5,17 +5,15 @@ import {
   Lock, 
   Mail, 
   User, 
-  Shield, 
-  ShieldAlert, 
   ShieldCheck, 
+  ShieldAlert, 
+  Terminal,
   ArrowRight, 
-  Sparkles,
-  Zap,
   AlertCircle
 } from 'lucide-react';
 
 export const Login = () => {
-  const { login, signUp, demoLogin, rolesHierarchy } = useAuth();
+  const { login, signUp, rolesHierarchy } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +43,19 @@ export const Login = () => {
     }
   };
 
+  const getRoleIcon = (key) => {
+    switch (key) {
+      case 'desarrollador':
+        return <Terminal size={16} color="var(--primary-light)" />;
+      case 'administrativo':
+        return <ShieldAlert size={16} color="#818cf8" />;
+      case 'operador':
+        return <ShieldCheck size={16} color="#06b6d4" />;
+      default:
+        return <User size={16} color="#10b981" />;
+    }
+  };
+
   return (
     <div className="auth-wrapper">
       <div className="auth-card glass-card">
@@ -55,7 +66,7 @@ export const Login = () => {
           </div>
           <h1 className="brand-title">Simulador de Sistemas</h1>
           <p className="brand-subtitle">
-            {isRegister ? 'Crea tu cuenta con rol y nivel de jerarquía' : 'Accede a la plataforma de simulación'}
+            {isRegister ? 'Crea tu cuenta asignando el rol y nivel de jerarquía' : 'Accede a la plataforma de simulación'}
           </p>
         </div>
 
@@ -155,15 +166,10 @@ export const Login = () => {
                     type="button"
                     className={`role-option-btn ${rol === key ? 'active' : ''}`}
                     onClick={() => setRol(key)}
+                    title={info.descripcion}
                   >
                     <div className="role-option-header">
-                      {key === 'admin' ? (
-                        <ShieldAlert size={16} color="var(--primary-light)" />
-                      ) : key === 'operador' ? (
-                        <ShieldCheck size={16} color="var(--secondary)" />
-                      ) : (
-                        <Shield size={16} color="var(--accent)" />
-                      )}
+                      {getRoleIcon(key)}
                       <span>{info.label}</span>
                     </div>
                     <span className="role-level-pill">Nivel {info.nivel}</span>
@@ -184,40 +190,6 @@ export const Login = () => {
             )}
           </button>
         </form>
-
-        {/* Demo Fast Logins */}
-        <div className="demo-accounts-box">
-          <div className="demo-header">
-            <Zap size={14} color="var(--warning)" />
-            <span>Acceso rápido de prueba (Jerarquías)</span>
-          </div>
-          <div className="demo-buttons-grid">
-            <button
-              type="button"
-              className="demo-btn admin-demo"
-              onClick={() => demoLogin('admin')}
-            >
-              <ShieldAlert size={14} />
-              <span>Admin (Nivel 3)</span>
-            </button>
-            <button
-              type="button"
-              className="demo-btn operador-demo"
-              onClick={() => demoLogin('operador')}
-            >
-              <ShieldCheck size={14} />
-              <span>Operador (Nivel 2)</span>
-            </button>
-            <button
-              type="button"
-              className="demo-btn usuario-demo"
-              onClick={() => demoLogin('usuario')}
-            >
-              <User size={14} />
-              <span>Usuario (Nivel 1)</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

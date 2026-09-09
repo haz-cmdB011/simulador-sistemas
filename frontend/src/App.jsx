@@ -17,20 +17,21 @@ import {
   CheckCircle2,
   Table,
   LogOut,
-  Shield,
   ShieldAlert,
   ShieldCheck,
   User as UserIcon,
   Sliders,
   Database,
-  Download,
-  Info
+  Terminal,
+  Trash2,
+  Lock,
+  Flame
 } from 'lucide-react';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
 function SimuladorContent() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, isDesarrollador, isAdministrativo, canDelete, canEditCritical } = useAuth();
 
   const [formData, setFormData] = useState({
     inversionInicial: 5000,
@@ -44,7 +45,8 @@ function SimuladorContent() {
   const [error, setError] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [serverOnline, setServerOnline] = useState(null);
-  const [adminLogs, setAdminLogs] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [notification, setNotification] = useState(null);
 
   // Comprobar salud del servidor backend
   const checkHealth = async () => {
@@ -65,6 +67,11 @@ function SimuladorContent() {
     const interval = setInterval(checkHealth, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  const showNotification = (msg, type = 'success') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -109,17 +116,19 @@ function SimuladorContent() {
       setResultado(data.data);
       setServerOnline(true);
 
-      // Si es admin, registrar en bitácora local de auditoría
-      if (user?.rol === 'admin') {
-        setAdminLogs((prev) => [
+      // Registrar en bitácora de auditoría para niveles administrativos y desarrollador
+      if (isAdministrativo) {
+        setAuditLogs((prev) => [
           {
             id: Date.now(),
             fecha: new Date().toLocaleTimeString(),
             usuario: user.email,
+            rol: user.rol,
             monto: data.data.resumen.montoFinal,
-            tipo: formData.tipo
+            tipo: formData.tipo,
+            inversion: data.data.resumen.inversionTotal
           },
-          ...prev.slice(0, 9)
+          ...prev.slice(0, 19)
         ]);
       }
     } catch (err) {
@@ -131,6 +140,47 @@ function SimuladorContent() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Acción destructiva: Eliminar registro individual de auditoría (Exclusivo Desarrollador)
+  const handleDeleteAuditLog = (id) => {
+    if (!canDelete) {
+      showNotification('Acción bloqueada: Permiso reservado exclusivamente para Desarrollador.', 'error');
+      return;
+    }
+    setAuditLogs((prev) => prev.filter((log) => log.id !== id));
+    showNotification('Registro de auditoría eliminado correctamente.', 'success');
+  };
+
+  // Acción destructiva: Purgar toda la bitácora (Exclusivo Desarrollador)
+  const handlePurgeAllLogs = () => {
+    if (!canDelete) {
+      showNotification('Acción bloqueada: Permiso reservado exclusivamente para Desarrollador.', 'error');
+      return;
+    }
+    if (window.confirm('¿Confirmas purgar por completo la bitácora de auditoría de la sesión?')) {
+      setAuditLogs([]);
+      showNotification('Bitácora de auditoría purgada por el Desarrollador.', 'success');
+    }
+  };
+
+  // Acción destructiva: Restablecer valores de prueba (Exclusivo Desarrollador)
+  const handleResetTestDatabase = () => {
+    if (!canDelete) {
+      showNotification('Acción bloqueada: Permiso reservado exclusivamente para Desarrollador.', 'error');
+      return;
+    }
+    if (window.confirm('¿Confirmas restablecer el estado del simulador a los valores predeterminados?')) {
+      setFormData({
+        inversionInicial: 1000,
+        tasaInteres: 5,
+        periodos: 12,
+        tipo: 'compuesto',
+        aportacionMensual: 0
+      });
+      setAuditLogs([]);
+      showNotification('Estado del sistema restablecido por el Desarrollador.', 'success');
     }
   };
 
@@ -147,11 +197,19 @@ function SimuladorContent() {
   };
 
   const getRoleBadge = () => {
-    if (user?.rol === 'admin') {
+    if (user?.rol === 'desarrollador') {
       return (
-        <div className="user-role-pill role-admin">
+        <div className="user-role-pill role-desarrollador">
+          <Terminal size={14} />
+          <span>Desarrollador (Nivel 1)</span>
+        </div>
+      );
+    }
+    if (user?.rol === 'administrativo') {
+      return (
+        <div className="user-role-pill role-administrativo">
           <ShieldAlert size={14} />
-          <span>Administrador (Nivel 3)</span>
+          <span>Administrativo (Nivel 2)</span>
         </div>
       );
     }
@@ -159,14 +217,14 @@ function SimuladorContent() {
       return (
         <div className="user-role-pill role-operador">
           <ShieldCheck size={14} />
-          <span>Operador (Nivel 2)</span>
+          <span>Operador (Nivel 3)</span>
         </div>
       );
     }
     return (
       <div className="user-role-pill role-usuario">
         <UserIcon size={14} />
-        <span>Usuario (Nivel 1)</span>
+        <span>Usuario (Nivel 4)</span>
       </div>
     );
   };
@@ -222,6 +280,14 @@ function SimuladorContent() {
         </div>
       </div>
 
+      {/* Toast Notification */}
+      {notification && (
+        <div className={`notification-toast ${notification.type}`}>
+          {notification.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{notification.msg}</span>
+        </div>
+      )}
+
       {/* Main App Header */}
       <header className="app-header" style={{ marginTop: '1.5rem' }}>
         <div className="brand-area">
@@ -231,27 +297,162 @@ function SimuladorContent() {
           <div>
             <h1 className="brand-title">Simulador de Sistemas</h1>
             <p className="brand-subtitle">
-              {user?.rol === 'admin'
-                ? 'Panel de Control con privilegios de Administrador'
+              {user?.rol === 'desarrollador'
+                ? 'Consola Maestra de Desarrollador • Control Total de Base de Datos y Parámetros'
+                : user?.rol === 'administrativo'
+                ? 'Panel de Gestión Administrativa • Monitoreo y Auditoría de Acciones'
                 : user?.rol === 'operador'
-                ? 'Consola de Operaciones y Simulación de Sistemas'
+                ? 'Consola de Operaciones y Captura de Simulaciones'
                 : 'Simulación y cálculo de proyecciones financieras'}
             </p>
           </div>
         </div>
       </header>
 
-      {/* Admin Protected Panel (Exclusivo para Administradores) */}
-      {hasRole('admin') && (
-        <ProtectedRoute allowedRoles={['admin']}>
-          <div className="glass-card admin-dashboard-card" style={{ marginBottom: '2rem' }}>
+      {/* Panel Exclusivo para Desarrollador (Nivel 1) */}
+      {isDesarrollador && (
+        <ProtectedRoute allowedRoles={['desarrollador']}>
+          <div className="glass-card dev-dashboard-card" style={{ marginBottom: '2rem' }}>
             <div className="card-header">
               <h2 className="card-title" style={{ color: 'var(--primary-light)' }}>
-                <ShieldAlert size={22} />
-                Módulo Exclusivo de Administración
+                <Terminal size={22} />
+                Módulo Maestro de Desarrollador (Nivel 1 - Control Total)
               </h2>
-              <span className="admin-status-tag">Acceso Total</span>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <span className="dev-status-tag">
+                  <Flame size={13} /> Control Total
+                </span>
+              </div>
             </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Privilegio exclusivo para el Creador: Edición profunda, auditoría de base de datos y ejecución de acciones destructivas.
+            </p>
+
+            <div className="admin-grid-features">
+              <div className="admin-feature-box dev-box">
+                <div className="feature-icon">
+                  <Database size={20} color="var(--primary-light)" />
+                </div>
+                <div>
+                  <h4>Base de Datos Supabase</h4>
+                  <p>Control de lectura, escritura y depuración en <code>simulaciones</code></p>
+                </div>
+              </div>
+
+              <div className="admin-feature-box dev-box">
+                <div className="feature-icon">
+                  <Sliders size={20} color="var(--secondary)" />
+                </div>
+                <div>
+                  <h4>Edición de Parámetros Críticos</h4>
+                  <p>Ajuste maestro de algoritmos y tasas</p>
+                </div>
+              </div>
+
+              <div className="admin-feature-box dev-box">
+                <div className="feature-icon">
+                  <Activity size={20} color="var(--accent)" />
+                </div>
+                <div>
+                  <h4>Auditoría de Cálculos</h4>
+                  <p>{auditLogs.length} simulaciones registradas</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Acciones Destructivas Exclusivas del Desarrollador */}
+            <div className="dev-destructive-actions-bar">
+              <span className="destructive-label">Acciones Destructivas (Solo Desarrollador):</span>
+              <div className="destructive-btn-group">
+                <button
+                  type="button"
+                  className="btn-destructive"
+                  onClick={handlePurgeAllLogs}
+                  disabled={auditLogs.length === 0}
+                  title="Eliminar todas las simulaciones de la bitácora"
+                >
+                  <Trash2 size={15} />
+                  <span>Vaciar Bitácora ({auditLogs.length})</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-destructive-secondary"
+                  onClick={handleResetTestDatabase}
+                  title="Restablecer el simulador a los valores originales"
+                >
+                  <RefreshCw size={15} />
+                  <span>Restablecer Parámetros</span>
+                </button>
+              </div>
+            </div>
+
+            {auditLogs.length > 0 && (
+              <div className="admin-audit-table" style={{ marginTop: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Registros auditados en el sistema:
+                  </h4>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {auditLogs.length} registros
+                  </span>
+                </div>
+                <div className="table-wrapper">
+                  <table className="sim-table">
+                    <thead>
+                      <tr>
+                        <th>Hora</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Tipo</th>
+                        <th>Monto Final</th>
+                        <th style={{ textAlign: 'center' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map((log) => (
+                        <tr key={log.id}>
+                          <td>{log.fecha}</td>
+                          <td>{log.usuario}</td>
+                          <td><span className="role-level-pill">{log.rol}</span></td>
+                          <td><span className="role-level-pill">{log.tipo}</span></td>
+                          <td className="gain-positive">{formatCurrency(log.monto)}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn-delete-row"
+                              onClick={() => handleDeleteAuditLog(log.id)}
+                              title="Eliminar este registro permanentemente"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </ProtectedRoute>
+      )}
+
+      {/* Panel para Administrativo (Nivel 2) - Modo Supervisión y Lectura */}
+      {hasRole('administrativo') && !isDesarrollador && (
+        <ProtectedRoute allowedRoles={['administrativo']}>
+          <div className="glass-card admin-dashboard-card" style={{ marginBottom: '2rem' }}>
+            <div className="card-header">
+              <h2 className="card-title" style={{ color: '#818cf8' }}>
+                <ShieldAlert size={22} />
+                Panel de Gestión y Monitoreo Administrativo (Nivel 2)
+              </h2>
+              <span className="admin-status-tag">Supervisión / Lectura</span>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Visualización de perfiles y auditoría de cálculos. Las acciones destructivas están restringidas al nivel Desarrollador.
+            </p>
 
             <div className="admin-grid-features">
               <div className="admin-feature-box">
@@ -260,35 +461,35 @@ function SimuladorContent() {
                 </div>
                 <div>
                   <h4>Base de Datos Supabase</h4>
-                  <p>Persistencia activa en tabla <code>simulaciones</code></p>
+                  <p>Lectura activa de tabla <code>simulaciones</code></p>
                 </div>
               </div>
 
               <div className="admin-feature-box">
                 <div className="feature-icon">
-                  <Sliders size={20} color="var(--primary-light)" />
+                  <Activity size={20} color="#818cf8" />
                 </div>
                 <div>
-                  <h4>Control de Parámetros</h4>
-                  <p>Límites y tasas configurables para el sistema</p>
+                  <h4>Auditoría de Actividad</h4>
+                  <p>{auditLogs.length} cálculos auditados</p>
                 </div>
               </div>
 
               <div className="admin-feature-box">
                 <div className="feature-icon">
-                  <Activity size={20} color="var(--accent)" />
+                  <Lock size={20} color="var(--text-muted)" />
                 </div>
                 <div>
-                  <h4>Auditoría de Cálculos</h4>
-                  <p>{adminLogs.length} simulaciones registradas en la sesión</p>
+                  <h4>Acciones Destructivas</h4>
+                  <p>Restringidas a Desarrollador (Nivel 1)</p>
                 </div>
               </div>
             </div>
 
-            {adminLogs.length > 0 && (
+            {auditLogs.length > 0 && (
               <div className="admin-audit-table" style={{ marginTop: '1.25rem' }}>
                 <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                  Últimos cálculos auditados:
+                  Auditoría de cálculos en tiempo real:
                 </h4>
                 <div className="table-wrapper">
                   <table className="sim-table">
@@ -296,15 +497,17 @@ function SimuladorContent() {
                       <tr>
                         <th>Hora</th>
                         <th>Usuario</th>
+                        <th>Rol</th>
                         <th>Tipo</th>
                         <th>Monto Final</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {adminLogs.map((log) => (
+                      {auditLogs.map((log) => (
                         <tr key={log.id}>
                           <td>{log.fecha}</td>
                           <td>{log.usuario}</td>
+                          <td><span className="role-level-pill">{log.rol}</span></td>
                           <td><span className="role-level-pill">{log.tipo}</span></td>
                           <td className="gain-positive">{formatCurrency(log.monto)}</td>
                         </tr>
@@ -627,14 +830,14 @@ function AuthGate() {
         <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
           <RefreshCw size={28} className="spin" style={{ color: 'var(--primary)' }} />
           <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
-            Cargando sesión y roles...
+            Cargando sesión y jerarquía de roles...
           </p>
         </div>
       </div>
     );
   }
 
-  // Si no está autenticado, mostrar pantalla de Login como ante sala
+  // Si no está autenticado, mostrar pantalla de Login
   if (!user) {
     return <Login />;
   }
