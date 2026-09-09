@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Variables de entorno de Supabase o credenciales directas de respaldo para producción
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://opsdfefftzvhljjueljm.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV';
+const supabaseUrl = 'https://opsdfefftzvhljjueljm.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wc2RmZWZmdHp2aGxqanVlbGptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODEzOTgsImV4cCI6MjEwNDQ1NzM5OH0.qD9v39_149Gp9TJyCEVnm3FlbRPMutzLz0c3qm8dJpY';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

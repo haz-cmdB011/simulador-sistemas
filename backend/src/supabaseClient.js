@@ -1,8 +1,9 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+const rawUrl = process.env.SUPABASE_URL || 'https://opsdfefftzvhljjueljm.supabase.co';
+const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '');
+const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wc2RmZWZmdHp2aGxqanVlbGptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODEzOTgsImV4cCI6MjEwNDQ1NzM5OH0.qD9v39_149Gp9TJyCEVnm3FlbRPMutzLz0c3qm8dJpY';
 
 let supabase = null;
 
@@ -15,12 +16,12 @@ const esConfigValida =
 if (esConfigValida) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('[Supabase] Cliente inicializado correctamente.');
+    console.log('[Supabase Backend] Cliente inicializado correctamente.');
   } catch (error) {
-    console.error('[Supabase] Error al inicializar cliente:', error.message);
+    console.error('[Supabase Backend] Error al inicializar cliente:', error.message);
   }
 } else {
-  console.log('[Supabase] Variables de entorno por defecto o no configuradas. Guardado en modo pasivo.');
+  console.log('[Supabase Backend] Variables de entorno por defecto o no configuradas. Guardado en modo pasivo.');
 }
 
 /**
