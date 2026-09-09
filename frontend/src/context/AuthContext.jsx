@@ -157,6 +157,13 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (error) {
+      console.error('[Auth] Login fallido:', {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        name: error.name,
+        email: email.trim()
+      });
       setLoading(false);
       throw error;
     }

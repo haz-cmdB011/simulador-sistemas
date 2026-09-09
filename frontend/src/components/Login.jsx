@@ -10,6 +10,46 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
+/**
+ * Traduce los mensajes de error de Supabase Auth a español con instrucciones claras.
+ * @param {Error} error - Objeto de error de Supabase
+ * @returns {string} Mensaje de error en español
+ */
+const getErrorMessage = (error) => {
+  const msg = (error.message || '').toLowerCase();
+
+  if (msg.includes('invalid login credentials')) {
+    return 'Credenciales inválidas: el correo o la contraseña son incorrectos, o el usuario no existe en este proyecto. Verifica tus datos o regístrate primero.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'Tu cuenta aún no ha sido confirmada. Revisa tu bandeja de correo (incluyendo spam) para el enlace de verificación de Supabase.';
+  }
+  if (msg.includes('user not found')) {
+    return 'No se encontró ninguna cuenta con ese correo electrónico. ¿Necesitas registrarte primero?';
+  }
+  if (msg.includes('invalid api key') || msg.includes('apikey')) {
+    return 'Error de configuración del sistema (API Key inválida). Contacta al administrador.';
+  }
+  if (msg.includes('signup is disabled')) {
+    return 'El registro de nuevas cuentas está deshabilitado en este momento. Contacta al administrador.';
+  }
+  if (msg.includes('rate limit') || msg.includes('too many requests')) {
+    return 'Demasiados intentos. Espera unos segundos antes de volver a intentar.';
+  }
+  if (msg.includes('network') || msg.includes('fetch')) {
+    return 'No se pudo conectar con el servidor de autenticación. Verifica tu conexión a internet.';
+  }
+  if (msg.includes('password') && msg.includes('at least')) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  if (msg.includes('already registered') || msg.includes('already been registered')) {
+    return 'Este correo electrónico ya está registrado. Intenta iniciar sesión en su lugar.';
+  }
+
+  // Fallback: devuelve el mensaje original si no hay traducción
+  return error.message || 'Error de autenticación con Supabase.';
+};
+
 export const Login = () => {
   const { login, signUp } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
@@ -43,7 +83,7 @@ export const Login = () => {
       }
     } catch (err) {
       console.error('[Auth Error]', err);
-      const msg = err.message || 'Error de autenticación con Supabase.';
+      const msg = getErrorMessage(err);
       setError(msg);
       alert(`Error: ${msg}`);
     } finally {
