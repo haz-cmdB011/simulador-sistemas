@@ -5,26 +5,25 @@ import {
   Lock, 
   Mail, 
   User, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Terminal,
   ArrowRight, 
-  AlertCircle
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 export const Login = () => {
-  const { login, signUp, rolesHierarchy } = useAuth();
+  const { login, signUp } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
-  const [rol, setRol] = useState('usuario');
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
     setLoading(true);
 
     try {
@@ -32,27 +31,23 @@ export const Login = () => {
         if (!nombre.trim()) {
           throw new Error('Por favor ingresa tu nombre completo.');
         }
-        await signUp(email, password, nombre, rol);
+        const res = await signUp(email, password, nombre);
+        if (res?.data?.user && !res?.data?.session) {
+          const msg = 'Registro creado exitosamente en Supabase. Si la confirmación de correo está activada, revisa tu correo para verificar tu cuenta; de lo contrario, puedes iniciar sesión.';
+          setSuccessMsg(msg);
+          alert(msg);
+          setIsRegister(false);
+        }
       } else {
         await login(email, password);
       }
     } catch (err) {
-      setError(err.message || 'Error al autenticar');
+      console.error('[Auth Error]', err);
+      const msg = err.message || 'Error de autenticación con Supabase.';
+      setError(msg);
+      alert(`Error: ${msg}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getRoleIcon = (key) => {
-    switch (key) {
-      case 'desarrollador':
-        return <Terminal size={16} color="var(--primary-light)" />;
-      case 'administrativo':
-        return <ShieldAlert size={16} color="#818cf8" />;
-      case 'operador':
-        return <ShieldCheck size={16} color="#06b6d4" />;
-      default:
-        return <User size={16} color="#10b981" />;
     }
   };
 
@@ -66,7 +61,7 @@ export const Login = () => {
           </div>
           <h1 className="brand-title">Simulador de Sistemas</h1>
           <p className="brand-subtitle">
-            {isRegister ? 'Crea tu cuenta asignando el rol y nivel de jerarquía' : 'Accede a la plataforma de simulación'}
+            {isRegister ? 'Crea tu cuenta oficial en la plataforma' : 'Accede con tu cuenta de Supabase'}
           </p>
         </div>
 
@@ -75,18 +70,26 @@ export const Login = () => {
           <button
             type="button"
             className={`auth-tab ${!isRegister ? 'active' : ''}`}
-            onClick={() => { setIsRegister(false); setError(null); }}
+            onClick={() => { setIsRegister(false); setError(null); setSuccessMsg(null); }}
           >
             Iniciar Sesión
           </button>
           <button
             type="button"
             className={`auth-tab ${isRegister ? 'active' : ''}`}
-            onClick={() => { setIsRegister(true); setError(null); }}
+            onClick={() => { setIsRegister(true); setError(null); setSuccessMsg(null); }}
           >
             Registrarse
           </button>
         </div>
+
+        {/* Success Alert */}
+        {successMsg && (
+          <div className="notification-toast success" style={{ position: 'static', marginBottom: '1.25rem', width: '100%', animation: 'none' }}>
+            <CheckCircle2 size={18} />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -154,34 +157,9 @@ export const Login = () => {
             </div>
           </div>
 
-          {isRegister && (
-            <div className="form-group">
-              <label className="form-label">
-                Rol de Usuario y Jerarquía
-              </label>
-              <div className="role-selector-grid">
-                {Object.entries(rolesHierarchy).map(([key, info]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`role-option-btn ${rol === key ? 'active' : ''}`}
-                    onClick={() => setRol(key)}
-                    title={info.descripcion}
-                  >
-                    <div className="role-option-header">
-                      {getRoleIcon(key)}
-                      <span>{info.label}</span>
-                    </div>
-                    <span className="role-level-pill">Nivel {info.nivel}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <button type="submit" className="btn-submit" disabled={loading}>
             {loading ? (
-              <span>Procesando...</span>
+              <span>Conectando con Supabase...</span>
             ) : (
               <>
                 <span>{isRegister ? 'Crear Cuenta' : 'Ingresar al Simulador'}</span>

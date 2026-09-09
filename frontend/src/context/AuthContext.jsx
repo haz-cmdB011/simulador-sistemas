@@ -44,92 +44,100 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Consulta estricta a la tabla 'perfiles' en Supabase para obtener el perfil y rol real
-  const fetchAndSetUserProfile = async (supabaseUser, currentSession) => {
-    if (!supabaseUser) {
+  // Consulta inmediata a la tabla 'perfiles' con el ID del usuario
+  const loadUserProfile = async (authUser, currentSession) => {
+    if (!authUser) {
       setUser(null);
       return null;
     }
 
-    let perfil = null;
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', supabaseUser.id)
-          .single();
+    try {
+      const { data: perfil, error: perfilError } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
 
-        if (error) {
-          console.warn('[Auth] Consulta a tabla "perfiles":', error.message);
-        } else if (data) {
-          perfil = data;
-        }
-      } catch (err) {
-        console.warn('[Auth] Excepción al consultar "perfiles":', err.message);
+      if (perfilError) {
+        console.warn('[Auth] Consulta a tabla perfiles:', perfilError.message);
       }
+
+      // El rol real proviene de la tabla perfiles, con fallback a user_metadata
+      const rawRol = perfil?.rol || authUser.user_metadata?.rol || 'usuario';
+      const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
+      const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
+
+      const formattedUser = {
+        id: authUser.id,
+        email: authUser.email,
+        nombre: perfil?.nombre || authUser.user_metadata?.nombre || authUser.email.split('@')[0],
+        rol: rol,
+        nivel: hierarchyInfo.nivel,
+        peso: hierarchyInfo.peso,
+        nivel_prioridad: perfil?.nivel_prioridad || hierarchyInfo.nivel,
+        perfil: perfil || null,
+        token: currentSession?.access_token || null
+      };
+
+      setUser(formattedUser);
+      return formattedUser;
+    } catch (err) {
+      console.error('[Auth] Error al cargar perfil:', err);
+      const rawRol = authUser.user_metadata?.rol || 'usuario';
+      const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
+      const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
+
+      const formattedUser = {
+        id: authUser.id,
+        email: authUser.email,
+        nombre: authUser.user_metadata?.nombre || authUser.email.split('@')[0],
+        rol: rol,
+        nivel: hierarchyInfo.nivel,
+        peso: hierarchyInfo.peso,
+        nivel_prioridad: hierarchyInfo.nivel,
+        perfil: null,
+        token: currentSession?.access_token || null
+      };
+
+      setUser(formattedUser);
+      return formattedUser;
     }
-
-    // El rol real se obtiene de la tabla 'perfiles'; si aún no existe registro, fallback a metadata del usuario
-    const rawRol = perfil?.rol || supabaseUser.user_metadata?.rol || 'usuario';
-    const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
-    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
-    const nivel_prioridad = perfil?.nivel_prioridad !== undefined 
-      ? perfil.nivel_prioridad 
-      : hierarchyInfo.nivel;
-
-    const formattedUser = {
-      id: supabaseUser.id,
-      email: supabaseUser.email,
-      nombre: perfil?.nombre || supabaseUser.user_metadata?.nombre || supabaseUser.email.split('@')[0],
-      rol,
-      nivel: hierarchyInfo.nivel,
-      peso: hierarchyInfo.peso,
-      nivel_prioridad,
-      perfil,
-      token: currentSession?.access_token || null
-    };
-
-    setUser(formattedUser);
-    return formattedUser;
   };
 
-  // Cargar sesión persistente de Supabase Auth
+  // Inicializar y escuchar sesión de Supabase Auth
   useEffect(() => {
     const initAuth = async () => {
-      if (!supabase) {
-        console.warn('[Auth] Supabase no está configurado.');
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('[Auth] Error getSession:', error.message);
+        }
         if (data?.session?.user) {
           setSession(data.session);
-          await fetchAndSetUserProfile(data.session.user, data.session);
+          await loadUserProfile(data.session.user, data.session);
         } else {
           setUser(null);
           setSession(null);
         }
       } catch (err) {
-        console.warn('[Auth] Error al obtener sesión inicial de Supabase:', err.message);
+        console.error('[Auth] Error al inicializar sesión:', err);
         setUser(null);
         setSession(null);
+      } finally {
+        setLoading(false);
       }
 
       const { data: authListener } = supabase.auth.onAuthStateChange(
         async (event, currentSession) => {
           setSession(currentSession);
           if (currentSession?.user) {
-            await fetchAndSetUserProfile(currentSession.user, currentSession);
+            await loadUserProfile(currentSession.user, currentSession);
           } else {
             setUser(null);
           }
+          setLoading(false);
         }
       );
-
-      setLoading(false);
 
       return () => {
         authListener?.subscription?.unsubscribe();
@@ -139,14 +147,9 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  // Iniciar Sesión Estricto (Sin mocks, sin bypass)
+  // Iniciar Sesión estricto con Supabase Auth
   const login = async (email, password) => {
     setLoading(true);
-
-    if (!supabase) {
-      setLoading(false);
-      throw new Error('El cliente de Supabase no está inicializado.');
-    }
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -155,85 +158,53 @@ export const AuthProvider = ({ children }) => {
 
     if (error) {
       setLoading(false);
-      if (error.message.includes('Invalid login credentials')) {
-        throw new Error('Credenciales inválidas. Verifica tu correo electrónico y contraseña.');
-      }
-      if (error.message.includes('Email not confirmed')) {
-        throw new Error('El correo electrónico no ha sido confirmado.');
-      }
-      throw new Error(error.message || 'Error de autenticación.');
+      throw error;
     }
 
-    if (!data?.user) {
+    if (!data?.session || !data?.user) {
       setLoading(false);
-      throw new Error('No se pudo autenticar el usuario en Supabase Auth.');
+      throw new Error('No se recibió la sesión del usuario autenticado.');
     }
 
     setSession(data.session);
-
-    // Obtener perfil real desde la tabla perfiles
-    const userProfile = await fetchAndSetUserProfile(data.user, data.session);
+    const userProfile = await loadUserProfile(data.user, data.session);
     setLoading(false);
-    return { success: true, user: userProfile };
+    return { success: true, user: userProfile, session: data.session };
   };
 
-  // Registro de nuevo usuario en Supabase Auth
-  const signUp = async (email, password, nombre, rol = 'usuario') => {
+  // Registro estricto con Supabase Auth
+  const signUp = async (email, password, nombre) => {
     setLoading(true);
-
-    if (!supabase) {
-      setLoading(false);
-      throw new Error('El cliente de Supabase no está inicializado.');
-    }
 
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: {
-          nombre: nombre.trim(),
-          rol
+          nombre: nombre.trim()
         }
       }
     });
 
     if (error) {
       setLoading(false);
-      throw new Error(error.message || 'Error al registrar el usuario.');
+      throw error;
     }
 
-    if (data?.user) {
-      // Registrar o actualizar perfil en la tabla 'perfiles'
-      try {
-        await supabase.from('perfiles').upsert({
-          id: data.user.id,
-          email: data.user.email,
-          nombre: nombre.trim(),
-          rol,
-          nivel_prioridad: ROLE_HIERARCHY[rol]?.nivel || 4
-        });
-      } catch (e) {
-        console.warn('[Auth] Error al guardar en tabla "perfiles":', e.message);
-      }
-
-      if (data.session) {
-        setSession(data.session);
-        await fetchAndSetUserProfile(data.user, data.session);
-      }
+    if (data?.session && data?.user) {
+      setSession(data.session);
+      await loadUserProfile(data.user, data.session);
     }
 
     setLoading(false);
-    return { success: true, user: data?.user };
+    return { success: true, data };
   };
 
   // Cerrar Sesión
   const logout = async () => {
-    if (supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.warn('[Auth] Error al cerrar sesión en Supabase:', err.message);
-      }
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.warn('[Auth] Error al cerrar sesión:', error.message);
     }
     setUser(null);
     setSession(null);
@@ -248,7 +219,7 @@ export const AuthProvider = ({ children }) => {
     return user.rol === allowedRoles;
   };
 
-  // Comprobación de nivel de jerarquía (por peso: 4 Desarrollador > 3 Administrativo > 2 Operador > 1 Usuario)
+  // Comprobación de nivel de jerarquía por peso
   const canAccessMinWeight = (minWeight = 1) => {
     if (!user) return false;
     return (user.peso || 1) >= minWeight;
