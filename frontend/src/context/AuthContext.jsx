@@ -44,172 +44,186 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar sesión persistente o inicializar
+  // Consulta estricta a la tabla 'perfiles' en Supabase para obtener el perfil y rol real
+  const fetchAndSetUserProfile = async (supabaseUser, currentSession) => {
+    if (!supabaseUser) {
+      setUser(null);
+      return null;
+    }
+
+    let perfil = null;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('perfiles')
+          .select('*')
+          .eq('id', supabaseUser.id)
+          .single();
+
+        if (error) {
+          console.warn('[Auth] Consulta a tabla "perfiles":', error.message);
+        } else if (data) {
+          perfil = data;
+        }
+      } catch (err) {
+        console.warn('[Auth] Excepción al consultar "perfiles":', err.message);
+      }
+    }
+
+    // El rol real se obtiene de la tabla 'perfiles'; si aún no existe registro, fallback a metadata del usuario
+    const rawRol = perfil?.rol || supabaseUser.user_metadata?.rol || 'usuario';
+    const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
+    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
+    const nivel_prioridad = perfil?.nivel_prioridad !== undefined 
+      ? perfil.nivel_prioridad 
+      : hierarchyInfo.nivel;
+
+    const formattedUser = {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      nombre: perfil?.nombre || supabaseUser.user_metadata?.nombre || supabaseUser.email.split('@')[0],
+      rol,
+      nivel: hierarchyInfo.nivel,
+      peso: hierarchyInfo.peso,
+      nivel_prioridad,
+      perfil,
+      token: currentSession?.access_token || null
+    };
+
+    setUser(formattedUser);
+    return formattedUser;
+  };
+
+  // Cargar sesión persistente de Supabase Auth
   useEffect(() => {
     const initAuth = async () => {
-      // 1. Si Supabase está configurado, escuchar cambios de autenticación
-      if (supabase) {
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data?.session) {
-            setSession(data.session);
-            extractAndSetUser(data.session.user);
-          }
-        } catch (err) {
-          console.warn('[Auth] Error al obtener sesión de Supabase:', err.message);
-        }
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(
-          async (event, currentSession) => {
-            setSession(currentSession);
-            if (currentSession?.user) {
-              extractAndSetUser(currentSession.user);
-            } else {
-              // Si no hay sesión en Supabase y no es sesión local persistida
-              const localUser = localStorage.getItem('sim_user');
-              if (!localUser) {
-                setUser(null);
-              }
-            }
-          }
-        );
-
-        return () => {
-          authListener?.subscription?.unsubscribe();
-        };
-      } else {
-        // 2. Modo Local / Fallback persistente
-        const savedUser = localStorage.getItem('sim_user');
-        if (savedUser) {
-          try {
-            setUser(JSON.parse(savedUser));
-          } catch (e) {
-            localStorage.removeItem('sim_user');
-          }
-        }
+      if (!supabase) {
+        console.warn('[Auth] Supabase no está configurado.');
+        setLoading(false);
+        return;
       }
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          setSession(data.session);
+          await fetchAndSetUserProfile(data.session.user, data.session);
+        } else {
+          setUser(null);
+          setSession(null);
+        }
+      } catch (err) {
+        console.warn('[Auth] Error al obtener sesión inicial de Supabase:', err.message);
+        setUser(null);
+        setSession(null);
+      }
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        async (event, currentSession) => {
+          setSession(currentSession);
+          if (currentSession?.user) {
+            await fetchAndSetUserProfile(currentSession.user, currentSession);
+          } else {
+            setUser(null);
+          }
+        }
+      );
+
       setLoading(false);
+
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
     };
 
     initAuth();
   }, []);
 
-  const extractAndSetUser = (supabaseUser) => {
-    const rawRol = supabaseUser.user_metadata?.rol || 'usuario';
-    // Mapear posible rol anterior 'admin' al nuevo 'desarrollador' o 'administrativo'
-    const rol = rawRol === 'admin' ? 'desarrollador' : rawRol;
-    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
-    
-    const formattedUser = {
-      id: supabaseUser.id,
-      email: supabaseUser.email,
-      nombre: supabaseUser.user_metadata?.nombre || supabaseUser.email.split('@')[0],
-      rol,
-      nivel: hierarchyInfo.nivel,
-      peso: hierarchyInfo.peso,
-      token: session?.access_token || null
-    };
-
-    setUser(formattedUser);
-    localStorage.setItem('sim_user', JSON.stringify(formattedUser));
-    setLoading(false);
-  };
-
-  // Iniciar Sesión
+  // Iniciar Sesión Estricto (Sin mocks, sin bypass)
   const login = async (email, password) => {
     setLoading(true);
 
-    // Intentar con Supabase si está disponible
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
-        setSession(data.session);
-        extractAndSetUser(data.user);
-        return { success: true, user: data.user };
-      } catch (error) {
-        console.warn('[Supabase Auth] Falló autenticación remota:', error.message);
-      }
+    if (!supabase) {
+      setLoading(false);
+      throw new Error('El cliente de Supabase no está inicializado.');
     }
 
-    // Modo local / Fallback para desarrollo
-    const emailLower = email.toLowerCase();
-    const rol = (emailLower.includes('desarrollador') || emailLower.includes('dev'))
-      ? 'desarrollador'
-      : (emailLower.includes('admin') || emailLower.includes('administrativo'))
-      ? 'administrativo'
-      : emailLower.includes('operador')
-      ? 'operador'
-      : 'usuario';
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    });
 
-    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
+    if (error) {
+      setLoading(false);
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Credenciales inválidas. Verifica tu correo electrónico y contraseña.');
+      }
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('El correo electrónico no ha sido confirmado.');
+      }
+      throw new Error(error.message || 'Error de autenticación.');
+    }
 
-    const localUser = {
-      id: `usr_${Date.now()}`,
-      email,
-      nombre: email.split('@')[0],
-      rol,
-      nivel: hierarchyInfo.nivel,
-      peso: hierarchyInfo.peso,
-      token: `mock_jwt_token_${Date.now()}`
-    };
+    if (!data?.user) {
+      setLoading(false);
+      throw new Error('No se pudo autenticar el usuario en Supabase Auth.');
+    }
 
-    setUser(localUser);
-    localStorage.setItem('sim_user', JSON.stringify(localUser));
+    setSession(data.session);
+
+    // Obtener perfil real desde la tabla perfiles
+    const userProfile = await fetchAndSetUserProfile(data.user, data.session);
     setLoading(false);
-    return { success: true, user: localUser };
+    return { success: true, user: userProfile };
   };
 
-  // Registro de nuevo usuario con rol asignado
+  // Registro de nuevo usuario en Supabase Auth
   const signUp = async (email, password, nombre, rol = 'usuario') => {
     setLoading(true);
 
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              nombre,
-              rol
-            }
-          }
-        });
+    if (!supabase) {
+      setLoading(false);
+      throw new Error('El cliente de Supabase no está inicializado.');
+    }
 
-        if (error) throw error;
-
-        if (data.session) {
-          setSession(data.session);
-          extractAndSetUser(data.user);
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          nombre: nombre.trim(),
+          rol
         }
-        return { success: true, user: data.user };
-      } catch (error) {
-        console.warn('[Supabase Auth] Falló registro remoto:', error.message);
+      }
+    });
+
+    if (error) {
+      setLoading(false);
+      throw new Error(error.message || 'Error al registrar el usuario.');
+    }
+
+    if (data?.user) {
+      // Registrar o actualizar perfil en la tabla 'perfiles'
+      try {
+        await supabase.from('perfiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          nombre: nombre.trim(),
+          rol,
+          nivel_prioridad: ROLE_HIERARCHY[rol]?.nivel || 4
+        });
+      } catch (e) {
+        console.warn('[Auth] Error al guardar en tabla "perfiles":', e.message);
+      }
+
+      if (data.session) {
+        setSession(data.session);
+        await fetchAndSetUserProfile(data.user, data.session);
       }
     }
 
-    // Fallback local
-    const hierarchyInfo = ROLE_HIERARCHY[rol] || ROLE_HIERARCHY.usuario;
-    const localUser = {
-      id: `usr_${Date.now()}`,
-      email,
-      nombre: nombre || email.split('@')[0],
-      rol,
-      nivel: hierarchyInfo.nivel,
-      peso: hierarchyInfo.peso,
-      token: `mock_jwt_token_${Date.now()}`
-    };
-
-    setUser(localUser);
-    localStorage.setItem('sim_user', JSON.stringify(localUser));
     setLoading(false);
-    return { success: true, user: localUser };
+    return { success: true, user: data?.user };
   };
 
   // Cerrar Sesión
@@ -223,7 +237,6 @@ export const AuthProvider = ({ children }) => {
     }
     setUser(null);
     setSession(null);
-    localStorage.removeItem('sim_user');
   };
 
   // Comprobación de roles específicos
