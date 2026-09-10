@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  TrendingUp, 
-  Lock, 
-  Mail, 
-  User, 
-  ArrowRight, 
+import {
+  TrendingUp,
+  Lock,
+  Mail,
+  User,
+  ArrowRight,
+  ArrowLeft,
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
@@ -51,14 +52,24 @@ const getErrorMessage = (error) => {
 };
 
 export const Login = () => {
-  const { login, signUp } = useAuth();
-  const [isRegister, setIsRegister] = useState(false);
+  const { login, signUp, resetPassword } = useAuth();
+  // 'login' | 'register' | 'forgot'
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const isRegister = mode === 'register';
+  const isForgot = mode === 'forgot';
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setError(null);
+    setSuccessMsg(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,7 +78,11 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      if (isRegister) {
+      if (isForgot) {
+        await resetPassword(email);
+        const msg = `Si ${email.trim()} tiene una cuenta registrada, te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada (y spam).`;
+        setSuccessMsg(msg);
+      } else if (isRegister) {
         if (!nombre.trim()) {
           throw new Error('Por favor ingresa tu nombre completo.');
         }
@@ -76,7 +91,7 @@ export const Login = () => {
           const msg = 'Registro creado exitosamente en Supabase. Si la confirmación de correo está activada, revisa tu correo para verificar tu cuenta; de lo contrario, puedes iniciar sesión.';
           setSuccessMsg(msg);
           alert(msg);
-          setIsRegister(false);
+          switchMode('login');
         }
       } else {
         await login(email, password);
@@ -85,7 +100,9 @@ export const Login = () => {
       console.error('[Auth Error]', err);
       const msg = getErrorMessage(err);
       setError(msg);
-      alert(`Error: ${msg}`);
+      if (!isForgot) {
+        alert(`Error: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -101,27 +118,33 @@ export const Login = () => {
           </div>
           <h1 className="brand-title">Simulador de Sistemas</h1>
           <p className="brand-subtitle">
-            {isRegister ? 'Crea tu cuenta oficial en la plataforma' : 'Accede con tu cuenta de Supabase'}
+            {isForgot
+              ? 'Recupera el acceso a tu cuenta'
+              : isRegister
+              ? 'Crea tu cuenta oficial en la plataforma'
+              : 'Accede con tu cuenta de Supabase'}
           </p>
         </div>
 
-        {/* Tab Selector */}
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={`auth-tab ${!isRegister ? 'active' : ''}`}
-            onClick={() => { setIsRegister(false); setError(null); setSuccessMsg(null); }}
-          >
-            Iniciar Sesión
-          </button>
-          <button
-            type="button"
-            className={`auth-tab ${isRegister ? 'active' : ''}`}
-            onClick={() => { setIsRegister(true); setError(null); setSuccessMsg(null); }}
-          >
-            Registrarse
-          </button>
-        </div>
+        {/* Tab Selector (oculto en el flujo de recuperación) */}
+        {!isForgot && (
+          <div className="auth-tabs">
+            <button
+              type="button"
+              className={`auth-tab ${!isRegister ? 'active' : ''}`}
+              onClick={() => switchMode('login')}
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              className={`auth-tab ${isRegister ? 'active' : ''}`}
+              onClick={() => switchMode('register')}
+            >
+              Registrarse
+            </button>
+          </div>
+        )}
 
         {/* Success Alert */}
         {successMsg && (
@@ -179,27 +202,54 @@ export const Login = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">
-              Contraseña
-            </label>
-            <div className="input-wrapper">
-              <Lock size={18} className="input-icon" />
-              <input
-                id="password"
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+          {!isForgot && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="password">
+                Contraseña
+              </label>
+              <div className="input-wrapper">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="password"
+                  type="password"
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
+          )}
+
+          {!isForgot && !isRegister && (
+            <button
+              type="button"
+              className="link-button"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                textAlign: 'right',
+                cursor: 'pointer',
+                padding: 0,
+                marginTop: '-0.5rem'
+              }}
+              onClick={() => switchMode('forgot')}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
 
           <button type="submit" className="btn-submit" disabled={loading}>
             {loading ? (
-              <span>Conectando con Supabase...</span>
+              <span>{isForgot ? 'Enviando enlace...' : 'Conectando con Supabase...'}</span>
+            ) : isForgot ? (
+              <>
+                <span>Enviar enlace de recuperación</span>
+                <ArrowRight size={18} />
+              </>
             ) : (
               <>
                 <span>{isRegister ? 'Crear Cuenta' : 'Ingresar al Simulador'}</span>
@@ -207,6 +257,29 @@ export const Login = () => {
               </>
             )}
           </button>
+
+          {isForgot && (
+            <button
+              type="button"
+              className="link-button"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                cursor: 'pointer',
+                padding: 0,
+                justifyContent: 'center'
+              }}
+              onClick={() => switchMode('login')}
+            >
+              <ArrowLeft size={15} />
+              <span>Volver a iniciar sesión</span>
+            </button>
+          )}
         </form>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
+import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import { 
   TrendingUp, 
@@ -822,7 +823,7 @@ function App() {
 }
 
 function AuthGate() {
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery } = useAuth();
 
   if (loading) {
     return (
@@ -835,6 +836,12 @@ function AuthGate() {
         </div>
       </div>
     );
+  }
+
+  // Si el usuario llegó desde el enlace de "olvidé mi contraseña", pedirle
+  // primero que fije una nueva contraseña antes de entrar al simulador.
+  if (passwordRecovery) {
+    return <ResetPassword />;
   }
 
   // Si no está autenticado, mostrar pantalla de Login

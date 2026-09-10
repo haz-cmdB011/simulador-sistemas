@@ -5,35 +5,35 @@ const AuthContext = createContext(null);
 
 // Mapeo de jerarquía oficial (Nivel 1 es el más alto y exclusivo para el Creador)
 export const ROLE_HIERARCHY = {
-  desarrollador: { 
-    label: 'Desarrollador', 
-    nivel: 1, 
-    peso: 4, 
-    badgeColor: '#ec4899', 
+  desarrollador: {
+    label: 'Desarrollador',
+    nivel: 1,
+    peso: 4,
+    badgeColor: '#ec4899',
     icon: 'Terminal',
     descripcion: 'Control total para eliminar y editar cualquier perfil, registro o dato en la base de datos'
   },
-  administrativo: { 
-    label: 'Administrativo', 
-    nivel: 2, 
-    peso: 3, 
-    badgeColor: '#818cf8', 
+  administrativo: {
+    label: 'Administrativo',
+    nivel: 2,
+    peso: 3,
+    badgeColor: '#818cf8',
     icon: 'ShieldAlert',
     descripcion: 'Visualización de perfiles de usuario y gestión/lectura de las acciones a realizar en el sistema'
   },
-  operador: { 
-    label: 'Operador', 
-    nivel: 3, 
-    peso: 2, 
-    badgeColor: '#06b6d4', 
+  operador: {
+    label: 'Operador',
+    nivel: 3,
+    peso: 2,
+    badgeColor: '#06b6d4',
     icon: 'ShieldCheck',
     descripcion: 'Ejecución y captura operacional estándar'
   },
-  usuario: { 
-    label: 'Usuario', 
-    nivel: 4, 
-    peso: 1, 
-    badgeColor: '#10b981', 
+  usuario: {
+    label: 'Usuario',
+    nivel: 4,
+    peso: 1,
+    badgeColor: '#10b981',
     icon: 'User',
     descripcion: 'Acceso básico de consulta y perfil personal'
   }
@@ -43,6 +43,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  // true cuando el usuario llegó a la app desde un enlace de recuperación de
+  // contraseña (correo de "Olvidé mi contraseña"). Mientras esté en true, la
+  // UI debe mostrar el formulario de nueva contraseña en vez del simulador.
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   // Consulta inmediata a la tabla 'perfiles' con el ID del usuario
   const loadUserProfile = async (authUser, currentSession) => {
@@ -129,6 +133,16 @@ export const AuthProvider = ({ children }) => {
 
       const { data: authListener } = supabase.auth.onAuthStateChange(
         async (event, currentSession) => {
+          // Supabase dispara este evento cuando el usuario abre el enlace del
+          // correo de recuperación de contraseña. No cargamos el perfil todavía:
+          // primero debe fijar una contraseña nueva.
+          if (event === 'PASSWORD_RECOVERY') {
+            setSession(currentSession);
+            setPasswordRecovery(true);
+            setLoading(false);
+            return;
+          }
+
           setSession(currentSession);
           if (currentSession?.user) {
             await loadUserProfile(currentSession.user, currentSession);
@@ -207,6 +221,47 @@ export const AuthProvider = ({ children }) => {
     return { success: true, data };
   };
 
+  // Solicitar correo de recuperación de contraseña ("Olvidé mi contraseña").
+  // Supabase envía un enlace que regresa a esta misma app; al abrirlo se
+  // dispara el evento PASSWORD_RECOVERY manejado arriba.
+  const resetPassword = async (email) => {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo: window.location.origin }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, data };
+  };
+
+  // Fijar una nueva contraseña. Se usa tanto después de abrir el enlace de
+  // recuperación (sesión temporal de recovery) como si en el futuro se quiere
+  // ofrecer "cambiar contraseña" a un usuario ya autenticado.
+  const updatePassword = async (newPassword) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    setPasswordRecovery(false);
+
+    // Tras fijar la nueva contraseña, ya hay una sesión válida: cargamos el
+    // perfil para entrar directo al simulador.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.user) {
+      setSession(sessionData.session);
+      await loadUserProfile(sessionData.session.user, sessionData.session);
+    }
+
+    return { success: true, data };
+  };
+
   // Cerrar Sesión
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -215,6 +270,7 @@ export const AuthProvider = ({ children }) => {
     }
     setUser(null);
     setSession(null);
+    setPasswordRecovery(false);
   };
 
   // Comprobación de roles específicos
@@ -245,9 +301,12 @@ export const AuthProvider = ({ children }) => {
         user,
         session,
         loading,
+        passwordRecovery,
         login,
         signUp,
         logout,
+        resetPassword,
+        updatePassword,
         hasRole,
         canAccessMinWeight,
         canDelete,
