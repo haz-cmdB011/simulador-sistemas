@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminUserManager from './components/AdminUserManager';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -436,6 +437,13 @@ function SimuladorContent() {
               </div>
             )}
           </div>
+        </ProtectedRoute>
+      )}
+
+      {/* Gestión de contraseñas de usuarios (Exclusivo Desarrollador) */}
+      {isDesarrollador && (
+        <ProtectedRoute allowedRoles={['desarrollador']}>
+          <AdminUserManager />
         </ProtectedRoute>
       )}
 
