@@ -1,42 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, KeyRound, RefreshCw, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Users, KeyRound, RefreshCw, AlertCircle, CheckCircle2, X, UserPlus, Save } from 'lucide-react';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
+// Roles que el Desarrollador puede asignar desde este panel. El rol
+// 'desarrollador' (Nivel 1) es exclusivo del Creador y no aparece aquí.
+const ROLES_ASIGNABLES = [
+  { value: 'administrativo', label: 'Administrativo (Nivel 2)' },
+  { value: 'operador', label: 'Operador (Nivel 3)' },
+  { value: 'usuario', label: 'Usuario (Nivel 4)' }
+];
+
 /**
  * Panel exclusivo para el rol 'desarrollador': lista a todos los usuarios
- * registrados y permite fijarles una contraseña nueva directamente (sin
- * depender de que el correo de recuperación les llegue). Usa el backend
- * (rutas /api/admin/*), que a su vez usa la Service Role Key de Supabase —
- * esa clave nunca toca el navegador.
+ * registrados, permite crear cuentas nuevas directamente (con el rol que se
+ * elija), cambiar el rol de cualquier cuenta existente entre Nivel 2 y
+ * Nivel 4, y fijarle una contraseña nueva a cualquiera al instante. Todo
+ * pasa por el backend (rutas /api/admin/*), que usa la Service Role Key de
+ * Supabase — esa clave nunca toca el navegador.
  */
 export const AdminUserManager = () => {
   const { user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState(null);
+
+  // --- Restablecer contraseña ---
   const [activeUser, setActiveUser] = useState(null);
   const [nuevaContrasena, setNuevaContrasena] = useState('');
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [notification, setNotification] = useState(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // --- Crear usuario nuevo ---
+  const [showCrearForm, setShowCrearForm] = useState(false);
+  const [nuevoEmail, setNuevoEmail] = useState('');
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaPasswordCrear, setNuevaPasswordCrear] = useState('');
+  const [nuevoRol, setNuevoRol] = useState('usuario');
+  const [creando, setCreando] = useState(false);
+
+  // --- Cambiar rol por fila ---
+  const [rolEditando, setRolEditando] = useState({}); // { [id]: rolSeleccionado }
+  const [guardandoRolId, setGuardandoRolId] = useState(null);
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 4000);
+    setTimeout(() => setNotification(null), 5000);
   };
+
+  const authHeaders = (extra = {}) => ({
+    Authorization: `Bearer ${user.token}`,
+    ...extra
+  });
 
   const cargarUsuarios = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(`${API_URL}/api/admin/usuarios`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: authHeaders()
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'No se pudo cargar la lista de usuarios.');
+        throw new Error(data.details || data.error || 'No se pudo cargar la lista de usuarios.');
       }
       setUsuarios(data.usuarios || []);
     } catch (err) {
@@ -56,6 +84,77 @@ export const AdminUserManager = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- Crear usuario ---
+  const resetFormCrear = () => {
+    setNuevoEmail('');
+    setNuevoNombre('');
+    setNuevaPasswordCrear('');
+    setNuevoRol('usuario');
+  };
+
+  const crearUsuario = async (e) => {
+    e.preventDefault();
+
+    if (nuevaPasswordCrear.length < 6) {
+      showNotification('La contraseña debe tener al menos 6 caracteres.', 'error');
+      return;
+    }
+
+    setCreando(true);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/usuarios`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          email: nuevoEmail,
+          password: nuevaPasswordCrear,
+          nombre: nuevoNombre,
+          rol: nuevoRol
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.details || data.error || 'No se pudo crear el usuario.');
+      }
+      showNotification(data.mensaje || 'Usuario creado correctamente.', 'success');
+      resetFormCrear();
+      setShowCrearForm(false);
+      cargarUsuarios();
+    } catch (err) {
+      console.error('[AdminUserManager] Error al crear usuario:', err);
+      showNotification(err.message, 'error');
+    } finally {
+      setCreando(false);
+    }
+  };
+
+  // --- Cambiar rol ---
+  const cambiarRol = async (usuario) => {
+    const nuevoRolSeleccionado = rolEditando[usuario.id];
+    if (!nuevoRolSeleccionado || nuevoRolSeleccionado === usuario.rol) return;
+
+    setGuardandoRolId(usuario.id);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/usuarios/${usuario.id}/rol`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ rol: nuevoRolSeleccionado })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.details || data.error || 'No se pudo cambiar el rol.');
+      }
+      showNotification(data.mensaje || 'Rol actualizado correctamente.', 'success');
+      cargarUsuarios();
+    } catch (err) {
+      console.error('[AdminUserManager] Error al cambiar rol:', err);
+      showNotification(err.message, 'error');
+    } finally {
+      setGuardandoRolId(null);
+    }
+  };
+
+  // --- Restablecer contraseña ---
   const abrirReset = (u) => {
     setActiveUser(u);
     setNuevaContrasena('');
@@ -80,19 +179,16 @@ export const AdminUserManager = () => {
       return;
     }
 
-    setSaving(true);
+    setSavingPassword(true);
     try {
       const response = await fetch(`${API_URL}/api/admin/usuarios/${activeUser.id}/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`
-        },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nuevaContrasena })
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'No se pudo restablecer la contraseña.');
+        throw new Error(data.details || data.error || 'No se pudo restablecer la contraseña.');
       }
       showNotification(data.mensaje || 'Contraseña actualizada correctamente.', 'success');
       cerrarReset();
@@ -100,7 +196,7 @@ export const AdminUserManager = () => {
       console.error('[AdminUserManager] Error al restablecer contraseña:', err);
       showNotification(err.message, 'error');
     } finally {
-      setSaving(false);
+      setSavingPassword(false);
     }
   };
 
@@ -109,20 +205,30 @@ export const AdminUserManager = () => {
       <div className="card-header">
         <h2 className="card-title" style={{ color: 'var(--primary-light)' }}>
           <Users size={20} />
-          Gestión de Contraseñas de Usuarios
+          Gestión de Usuarios
         </h2>
-        <button
-          type="button"
-          onClick={cargarUsuarios}
-          title="Actualizar lista"
-          style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-        >
-          <RefreshCw size={16} className={loading ? 'spin' : ''} />
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className="btn-destructive-secondary"
+            onClick={() => setShowCrearForm((v) => !v)}
+          >
+            <UserPlus size={14} />
+            <span>{showCrearForm ? 'Cancelar' : 'Nuevo usuario'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={cargarUsuarios}
+            title="Actualizar lista"
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+          >
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          </button>
+        </div>
       </div>
 
       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-        Restablece la contraseña de cualquier usuario registrado, al instante, sin depender del correo de recuperación.
+        Crea usuarios nuevos, cambia el rol de cualquier cuenta (Nivel 2 a Nivel 4) y restablece contraseñas al instante.
       </p>
 
       {notification && (
@@ -142,6 +248,82 @@ export const AdminUserManager = () => {
         </div>
       )}
 
+      {showCrearForm && (
+        <form
+          onSubmit={crearUsuario}
+          className="sim-form"
+          style={{
+            marginBottom: '1.5rem',
+            padding: '1.25rem',
+            border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+            borderRadius: '12px'
+          }}
+        >
+          <div className="form-group">
+            <label className="form-label" htmlFor="nuevo-nombre">Nombre completo</label>
+            <div className="input-wrapper">
+              <input
+                id="nuevo-nombre"
+                type="text"
+                className="form-input"
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="nuevo-email">Correo electrónico</label>
+            <div className="input-wrapper">
+              <input
+                id="nuevo-email"
+                type="email"
+                className="form-input"
+                value={nuevoEmail}
+                onChange={(e) => setNuevoEmail(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="nueva-password-crear">Contraseña inicial</label>
+            <div className="input-wrapper">
+              <input
+                id="nueva-password-crear"
+                type="password"
+                className="form-input"
+                value={nuevaPasswordCrear}
+                onChange={(e) => setNuevaPasswordCrear(e.target.value)}
+                minLength={6}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="nuevo-rol">Rol</label>
+            <div className="input-wrapper">
+              <select
+                id="nuevo-rol"
+                className="form-input"
+                value={nuevoRol}
+                onChange={(e) => setNuevoRol(e.target.value)}
+              >
+                {ROLES_ASIGNABLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" className="btn-submit" disabled={creando}>
+            {creando ? 'Creando...' : 'Crear usuario'}
+          </button>
+        </form>
+      )}
+
       {loading ? (
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cargando usuarios...</p>
       ) : usuarios.length === 0 ? (
@@ -153,24 +335,58 @@ export const AdminUserManager = () => {
               <tr>
                 <th>Nombre</th>
                 <th>Correo</th>
-                <th>Rol</th>
-                <th style={{ textAlign: 'center' }}>Acciones</th>
+                <th>Rol actual</th>
+                <th>Cambiar rol</th>
+                <th style={{ textAlign: 'center' }}>Contraseña</th>
               </tr>
             </thead>
             <tbody>
-              {usuarios.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.nombre}</td>
-                  <td>{u.email}</td>
-                  <td><span className="role-level-pill">{u.rol}</span></td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button type="button" className="btn-destructive-secondary" onClick={() => abrirReset(u)}>
-                      <KeyRound size={14} />
-                      <span>Restablecer contraseña</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {usuarios.map((u) => {
+                const esDesarrollador = u.rol === 'desarrollador';
+                const rolSeleccionado = rolEditando[u.id] ?? (esDesarrollador ? '' : u.rol);
+                return (
+                  <tr key={u.id}>
+                    <td>{u.nombre}</td>
+                    <td>{u.email}</td>
+                    <td><span className="role-level-pill">{u.rol}</span></td>
+                    <td>
+                      {esDesarrollador ? (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>No editable</span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <select
+                            className="form-input"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                            value={rolSeleccionado}
+                            onChange={(e) =>
+                              setRolEditando((prev) => ({ ...prev, [u.id]: e.target.value }))
+                            }
+                          >
+                            {ROLES_ASIGNABLES.map((r) => (
+                              <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="btn-destructive-secondary"
+                            disabled={guardandoRolId === u.id || rolSeleccionado === u.rol}
+                            onClick={() => cambiarRol(u)}
+                            title="Guardar nuevo rol"
+                          >
+                            <Save size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button type="button" className="btn-destructive-secondary" onClick={() => abrirReset(u)}>
+                        <KeyRound size={14} />
+                        <span>Restablecer</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -247,8 +463,8 @@ export const AdminUserManager = () => {
                 </div>
               </div>
 
-              <button type="submit" className="btn-submit" disabled={saving}>
-                {saving ? 'Guardando...' : 'Guardar nueva contraseña'}
+              <button type="submit" className="btn-submit" disabled={savingPassword}>
+                {savingPassword ? 'Guardando...' : 'Guardar nueva contraseña'}
               </button>
             </form>
           </div>

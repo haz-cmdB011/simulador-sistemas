@@ -136,6 +136,127 @@ app.get('/api/admin/usuarios', requireDesarrollador, async (req, res) => {
   }
 });
 
+// Roles que el Desarrollador puede asignar a otros usuarios desde el panel.
+// 'desarrollador' (Nivel 1) queda excluido a propósito: es exclusivo del
+// Creador y no se otorga ni se quita desde esta interfaz.
+const ROLES_ASIGNABLES = {
+  administrativo: { nivel_prioridad: 2 },
+  operador: { nivel_prioridad: 3 },
+  usuario: { nivel_prioridad: 4 }
+};
+
+// POST /api/admin/usuarios — crea un usuario nuevo directamente (correo ya
+// confirmado, sin esperar el correo de verificación) con el rol indicado.
+app.post('/api/admin/usuarios', requireDesarrollador, async (req, res) => {
+  try {
+    const { email, password, nombre, rol = 'usuario' } = req.body;
+
+    if (!email || !password || !nombre) {
+      return res.status(400).json({ error: 'Correo, contraseña y nombre son obligatorios.' });
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
+    }
+    if (!Object.prototype.hasOwnProperty.call(ROLES_ASIGNABLES, rol)) {
+      return res.status(400).json({
+        error: `Rol inválido. Debe ser uno de: ${Object.keys(ROLES_ASIGNABLES).join(', ')}.`
+      });
+    }
+
+    // 1) Crea el usuario en Supabase Auth, con el correo ya confirmado.
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: String(email).trim(),
+      password: String(password),
+      email_confirm: true,
+      user_metadata: { nombre: String(nombre).trim() }
+    });
+
+    if (createError) throw createError;
+
+    const nuevoId = created.user.id;
+
+    // 2) El trigger handle_new_user ya insertó la fila en 'perfiles' con rol
+    // 'usuario' por defecto. Si se pidió un rol distinto, lo actualizamos.
+    if (rol !== 'usuario') {
+      const { error: updateError } = await supabaseAdmin
+        .from('perfiles')
+        .update({ rol, nivel_prioridad: ROLES_ASIGNABLES[rol].nivel_prioridad })
+        .eq('id', nuevoId);
+
+      if (updateError) throw updateError;
+    }
+
+    console.log(`[Admin] ${req.authUser.email} creó el usuario ${created.user.email} con rol ${rol}.`);
+
+    return res.status(201).json({
+      success: true,
+      mensaje: `Usuario ${created.user.email} creado correctamente con rol ${rol}.`,
+      usuario: { id: nuevoId, email: created.user.email, nombre, rol }
+    });
+  } catch (error) {
+    console.error('Error al crear usuario:', error);
+    const yaExiste = /already been registered|already registered/i.test(error.message || '');
+    return res.status(yaExiste ? 409 : 500).json({
+      error: yaExiste
+        ? 'Ya existe un usuario registrado con ese correo.'
+        : 'No se pudo crear el usuario.',
+      details: error.message
+    });
+  }
+});
+
+// PATCH /api/admin/usuarios/:id/rol — cambia el rol de un usuario existente,
+// entre Administrativo (Nivel 2), Operador (Nivel 3) y Usuario (Nivel 4).
+// El rol Desarrollador (Nivel 1) no se puede asignar ni quitar desde aquí.
+app.patch('/api/admin/usuarios/:id/rol', requireDesarrollador, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rol } = req.body;
+
+    if (!Object.prototype.hasOwnProperty.call(ROLES_ASIGNABLES, rol)) {
+      return res.status(400).json({
+        error: `Rol inválido. Debe ser uno de: ${Object.keys(ROLES_ASIGNABLES).join(', ')}.`
+      });
+    }
+
+    if (id === req.authUser.id) {
+      return res.status(400).json({ error: 'No puedes cambiar tu propio rol desde aquí.' });
+    }
+
+    const { data: perfilActual, error: perfilActualError } = await supabaseAdmin
+      .from('perfiles')
+      .select('rol, email')
+      .eq('id', id)
+      .single();
+
+    if (perfilActualError) throw perfilActualError;
+
+    if (perfilActual?.rol === 'desarrollador') {
+      return res.status(400).json({ error: 'No se puede cambiar el rol de una cuenta Desarrollador desde este panel.' });
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('perfiles')
+      .update({ rol, nivel_prioridad: ROLES_ASIGNABLES[rol].nivel_prioridad })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    console.log(`[Admin] ${req.authUser.email} cambió el rol de ${perfilActual.email} a ${rol}.`);
+
+    return res.json({
+      success: true,
+      mensaje: `Rol de ${perfilActual.email} actualizado a ${rol}.`
+    });
+  } catch (error) {
+    console.error('Error al cambiar rol:', error);
+    return res.status(500).json({
+      error: 'No se pudo cambiar el rol del usuario.',
+      details: error.message
+    });
+  }
+});
+
 // POST /api/admin/usuarios/:id/reset-password — fija una contraseña nueva
 // para cualquier usuario del sistema, sin depender de que reciba un correo.
 app.post('/api/admin/usuarios/:id/reset-password', requireDesarrollador, async (req, res) => {

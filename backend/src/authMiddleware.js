@@ -25,7 +25,11 @@ async function requireDesarrollador(req, res, next) {
     // Verifica el JWT contra Supabase Auth y obtiene el usuario dueño del token.
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user) {
-      return res.status(401).json({ error: 'Token inválido o expirado. Vuelve a iniciar sesión.' });
+      console.error('[Auth Middleware] Falla al verificar token:', userError?.message, userError?.status);
+      return res.status(401).json({
+        error: 'Token inválido o expirado. Vuelve a iniciar sesión.',
+        details: userError?.message || 'Sin usuario en la respuesta de Supabase.'
+      });
     }
 
     // Consulta el rol real en la tabla perfiles (usando el cliente admin para
@@ -37,7 +41,10 @@ async function requireDesarrollador(req, res, next) {
       .single();
 
     if (perfilError || perfil?.rol !== 'desarrollador') {
-      return res.status(403).json({ error: 'Acceso restringido: esta acción requiere el rol Desarrollador.' });
+      return res.status(403).json({
+        error: 'Acceso restringido: esta acción requiere el rol Desarrollador.',
+        details: perfilError?.message
+      });
     }
 
     req.authUser = userData.user;
