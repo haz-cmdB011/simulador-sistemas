@@ -9,7 +9,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
-app.use(cors());
+// CORS restringido: solo el frontend oficial (y localhost en desarrollo)
+// pueden llamar a esta API desde el navegador. Antes estaba abierto a
+// cualquier origen (cors() sin opciones), lo cual no protege los datos por sí
+// solo (las rutas siguen exigiendo un JWT válido), pero sí es una capa extra
+// que evita que un sitio cualquiera use el navegador de un usuario para
+// hablarle a esta API. ORIGENES_PERMITIDOS puede ampliarse con la variable
+// de entorno FRONTEND_URL si el sitio cambia de dominio.
+const ORIGENES_PERMITIDOS = [
+  'https://simulador-sistemas-becarios2.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    // Sin header Origin (curl, Postman, servidor a servidor) se permite —
+    // no es el caso que este CORS protege.
+    if (!origin || ORIGENES_PERMITIDOS.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origen no permitido por CORS'));
+  }
+}));
 app.use(express.json());
 
 // Ruta raíz
