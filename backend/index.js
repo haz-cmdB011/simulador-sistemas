@@ -339,6 +339,47 @@ app.post('/api/admin/usuarios/:id/reset-password', requireDesarrollador, async (
   }
 });
 
+// DELETE /api/admin/usuarios/:id — elimina una cuenta por completo (Auth +
+// perfil, este último por borrado en cascada). No se puede eliminar la
+// propia cuenta ni ninguna cuenta con rol 'desarrollador' desde aquí.
+app.delete('/api/admin/usuarios/:id', requireDesarrollador, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.authUser.id) {
+      return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta desde aquí.' });
+    }
+
+    const { data: perfilActual, error: perfilActualError } = await supabaseAdmin
+      .from('perfiles')
+      .select('rol, email')
+      .eq('id', id)
+      .single();
+
+    if (perfilActualError) throw perfilActualError;
+
+    if (perfilActual?.rol === 'desarrollador') {
+      return res.status(400).json({ error: 'No se puede eliminar una cuenta Desarrollador desde este panel.' });
+    }
+
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (deleteError) throw deleteError;
+
+    console.log(`[Admin] ${req.authUser.email} eliminó la cuenta ${perfilActual.email}.`);
+
+    return res.json({
+      success: true,
+      mensaje: `Cuenta ${perfilActual.email} eliminada permanentemente.`
+    });
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    return res.status(500).json({
+      error: 'No se pudo eliminar el usuario.',
+      details: error.message
+    });
+  }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

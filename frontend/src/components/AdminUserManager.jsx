@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, KeyRound, RefreshCw, AlertCircle, CheckCircle2, X, UserPlus, Save } from 'lucide-react';
+import { Users, KeyRound, RefreshCw, AlertCircle, CheckCircle2, X, UserPlus, Save, Trash2 } from 'lucide-react';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
@@ -46,6 +46,9 @@ export const AdminUserManager = () => {
   // --- Cambiar rol por fila ---
   const [rolEditando, setRolEditando] = useState({}); // { [id]: rolSeleccionado }
   const [guardandoRolId, setGuardandoRolId] = useState(null);
+
+  // --- Eliminar usuario ---
+  const [eliminandoId, setEliminandoId] = useState(null);
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -153,6 +156,33 @@ export const AdminUserManager = () => {
       showNotification(err.message, 'error');
     } finally {
       setGuardandoRolId(null);
+    }
+  };
+
+  // --- Eliminar usuario ---
+  const eliminarUsuario = async (u) => {
+    const confirmado = window.confirm(
+      `¿Seguro que quieres eliminar permanentemente a ${u.nombre} (${u.email})?\n\nEsta acción no se puede deshacer: se borra su acceso y su perfil.`
+    );
+    if (!confirmado) return;
+
+    setEliminandoId(u.id);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/usuarios/${u.id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.details || data.error || 'No se pudo eliminar el usuario.');
+      }
+      showNotification(data.mensaje || 'Usuario eliminado correctamente.', 'success');
+      setUsuarios((prev) => prev.filter((x) => x.id !== u.id));
+    } catch (err) {
+      console.error('[AdminUserManager] Error al eliminar usuario:', err);
+      showNotification(err.message, 'error');
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -341,6 +371,7 @@ export const AdminUserManager = () => {
                 <th>Rol actual</th>
                 <th>Cambiar rol</th>
                 <th style={{ textAlign: 'center' }}>Contraseña</th>
+                <th style={{ textAlign: 'center' }}>Eliminar</th>
               </tr>
             </thead>
             <tbody>
@@ -386,6 +417,22 @@ export const AdminUserManager = () => {
                         <KeyRound size={14} />
                         <span>Restablecer</span>
                       </button>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {esDesarrollador ? (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>No editable</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-destructive"
+                          disabled={eliminandoId === u.id}
+                          onClick={() => eliminarUsuario(u)}
+                          title="Eliminar usuario permanentemente"
+                        >
+                          <Trash2 size={14} />
+                          <span>{eliminandoId === u.id ? 'Eliminando...' : 'Eliminar'}</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

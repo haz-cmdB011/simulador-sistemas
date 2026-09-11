@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminUserManager from './components/AdminUserManager';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Percent, 
-  Calendar, 
-  Layers, 
-  Activity, 
-  ArrowUpRight, 
-  Sparkles, 
+import NavMenu from './components/NavMenu';
+import {
+  TrendingUp,
+  DollarSign,
+  Percent,
+  Calendar,
+  Layers,
+  Activity,
+  ArrowUpRight,
+  Sparkles,
   RefreshCw,
   AlertCircle,
   PiggyBank,
@@ -27,13 +28,20 @@ import {
   Terminal,
   Trash2,
   Lock,
-  Flame
+  Flame,
+  Calculator,
+  Users
 } from 'lucide-react';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
 function SimuladorContent() {
   const { user, logout, hasRole, isDesarrollador, isAdministrativo, canDelete, canEditCritical } = useAuth();
+
+  // Sección visible actualmente. En vez de mostrar todos los paneles al
+  // mismo tiempo (lo cual saturaba la pantalla de información), solo se
+  // muestra uno a la vez, elegido desde el menú desplegable.
+  const [activeSection, setActiveSection] = useState('simulador');
 
   const [formData, setFormData] = useState({
     inversionInicial: 5000,
@@ -49,6 +57,44 @@ function SimuladorContent() {
   const [serverOnline, setServerOnline] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [notification, setNotification] = useState(null);
+
+  // Secciones del menú, armadas según lo que puede ver cada rol. Un
+  // Desarrollador ve las cuatro; un Administrativo ve Simulador +
+  // Supervisión; Operador y Usuario solo ven el Simulador.
+  const menuItems = useMemo(() => {
+    const items = [
+      {
+        id: 'simulador',
+        label: 'Simulador',
+        icon: Calculator,
+        description: 'Calcular proyecciones financieras'
+      }
+    ];
+
+    if (isDesarrollador) {
+      items.push({
+        id: 'consola',
+        label: 'Consola Maestra',
+        icon: Terminal,
+        description: 'Base de datos, parámetros y auditoría'
+      });
+      items.push({
+        id: 'usuarios',
+        label: 'Gestión de Usuarios',
+        icon: Users,
+        description: 'Crear, editar y eliminar cuentas'
+      });
+    } else if (hasRole('administrativo')) {
+      items.push({
+        id: 'supervision',
+        label: 'Panel de Supervisión',
+        icon: ShieldAlert,
+        description: 'Monitoreo y auditoría de cálculos'
+      });
+    }
+
+    return items;
+  }, [isDesarrollador, hasRole]);
 
   // Comprobar salud del servidor backend
   const checkHealth = async () => {
@@ -249,6 +295,10 @@ function SimuladorContent() {
         </div>
 
         <div className="user-actions">
+          {menuItems.length > 1 && (
+            <NavMenu items={menuItems} activeId={activeSection} onSelect={setActiveSection} />
+          )}
+
           <div className="status-badge">
             <div
               className={`status-dot ${
@@ -311,8 +361,8 @@ function SimuladorContent() {
         </div>
       </header>
 
-      {/* Panel Exclusivo para Desarrollador (Nivel 1) */}
-      {isDesarrollador && (
+      {/* Panel Exclusivo para Desarrollador (Nivel 1): Consola Maestra */}
+      {activeSection === 'consola' && isDesarrollador && (
         <ProtectedRoute allowedRoles={['desarrollador']}>
           <div className="glass-card dev-dashboard-card" style={{ marginBottom: '2rem' }}>
             <div className="card-header">
@@ -440,15 +490,15 @@ function SimuladorContent() {
         </ProtectedRoute>
       )}
 
-      {/* Gestión de contraseñas de usuarios (Exclusivo Desarrollador) */}
-      {isDesarrollador && (
+      {/* Gestión de usuarios (Exclusivo Desarrollador) */}
+      {activeSection === 'usuarios' && isDesarrollador && (
         <ProtectedRoute allowedRoles={['desarrollador']}>
           <AdminUserManager />
         </ProtectedRoute>
       )}
 
       {/* Panel para Administrativo (Nivel 2) - Modo Supervisión y Lectura */}
-      {hasRole('administrativo') && !isDesarrollador && (
+      {activeSection === 'supervision' && hasRole('administrativo') && !isDesarrollador && (
         <ProtectedRoute allowedRoles={['administrativo']}>
           <div className="glass-card admin-dashboard-card" style={{ marginBottom: '2rem' }}>
             <div className="card-header">
@@ -531,293 +581,295 @@ function SimuladorContent() {
       )}
 
       {/* Main Simulator Grid */}
-      <div className="main-grid">
-        {/* Formulario */}
-        <div className="glass-card">
-          <div className="card-header">
-            <h2 className="card-title">
-              <Sparkles size={20} color="var(--primary-light)" />
-              Parámetros de Simulación
-            </h2>
+      {activeSection === 'simulador' && (
+        <div className="main-grid">
+          {/* Formulario */}
+          <div className="glass-card">
+            <div className="card-header">
+              <h2 className="card-title">
+                <Sparkles size={20} color="var(--primary-light)" />
+                Parámetros de Simulación
+              </h2>
+            </div>
+
+            <form onSubmit={handleSubmit} className="sim-form">
+              {/* Inversión Inicial */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="inversionInicial">
+                  <span>Inversión Inicial</span>
+                  <span className="form-hint">Monto de partida</span>
+                </label>
+                <div className="input-wrapper">
+                  <DollarSign size={18} className="input-icon" />
+                  <input
+                    id="inversionInicial"
+                    name="inversionInicial"
+                    type="number"
+                    min="0"
+                    step="100"
+                    className="form-input"
+                    value={formData.inversionInicial}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Aportación Mensual */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="aportacionMensual">
+                  <span>Aportación Periódica</span>
+                  <span className="form-hint">Opcional por período</span>
+                </label>
+                <div className="input-wrapper">
+                  <PiggyBank size={18} className="input-icon" />
+                  <input
+                    id="aportacionMensual"
+                    name="aportacionMensual"
+                    type="number"
+                    min="0"
+                    step="50"
+                    className="form-input"
+                    value={formData.aportacionMensual}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              {/* Tasa de Interés */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="tasaInteres">
+                  <span>Tasa de Interés (%)</span>
+                  <span className="form-hint">Ejemplo: 8%</span>
+                </label>
+                <div className="input-wrapper">
+                  <Percent size={18} className="input-icon" />
+                  <input
+                    id="tasaInteres"
+                    name="tasaInteres"
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="0.1"
+                    className="form-input"
+                    value={formData.tasaInteres}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Períodos */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="periodos">
+                  <span>Número de Períodos</span>
+                  <span className="form-hint">Meses / Ciclos</span>
+                </label>
+                <div className="input-wrapper">
+                  <Calendar size={18} className="input-icon" />
+                  <input
+                    id="periodos"
+                    name="periodos"
+                    type="number"
+                    min="1"
+                    max="120"
+                    className="form-input"
+                    value={formData.periodos}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Sistema / Tipo de Interés */}
+              <div className="form-group">
+                <label className="form-label">
+                  <span>Tipo de Cálculo</span>
+                </label>
+                <div className="system-toggle">
+                  <button
+                    type="button"
+                    className={`toggle-btn ${formData.tipo === 'compuesto' ? 'active' : ''}`}
+                    onClick={() => handleTipoChange('compuesto')}
+                  >
+                    Compuesto
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn ${formData.tipo === 'simple' ? 'active' : ''}`}
+                    onClick={() => handleTipoChange('simple')}
+                  >
+                    Simple
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <RefreshCw size={18} className="spin" />
+                    Calculando...
+                  </>
+                ) : (
+                  <>
+                    <Activity size={18} />
+                    Calcular Simulación
+                  </>
+                )}
+              </button>
+            </form>
           </div>
 
-          <form onSubmit={handleSubmit} className="sim-form">
-            {/* Inversión Inicial */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="inversionInicial">
-                <span>Inversión Inicial</span>
-                <span className="form-hint">Monto de partida</span>
-              </label>
-              <div className="input-wrapper">
-                <DollarSign size={18} className="input-icon" />
-                <input
-                  id="inversionInicial"
-                  name="inversionInicial"
-                  type="number"
-                  min="0"
-                  step="100"
-                  className="form-input"
-                  value={formData.inversionInicial}
-                  onChange={handleChange}
-                  required
-                />
+          {/* Sección de Resultados */}
+          <div className="results-container">
+            {error && (
+              <div className="error-banner">
+                <AlertCircle size={20} />
+                <div>
+                  <strong>Error en la petición:</strong> {error}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Aportación Mensual */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="aportacionMensual">
-                <span>Aportación Periódica</span>
-                <span className="form-hint">Opcional por período</span>
-              </label>
-              <div className="input-wrapper">
-                <PiggyBank size={18} className="input-icon" />
-                <input
-                  id="aportacionMensual"
-                  name="aportacionMensual"
-                  type="number"
-                  min="0"
-                  step="50"
-                  className="form-input"
-                  value={formData.aportacionMensual}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            {/* Tasa de Interés */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="tasaInteres">
-                <span>Tasa de Interés (%)</span>
-                <span className="form-hint">Ejemplo: 8%</span>
-              </label>
-              <div className="input-wrapper">
-                <Percent size={18} className="input-icon" />
-                <input
-                  id="tasaInteres"
-                  name="tasaInteres"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="0.1"
-                  className="form-input"
-                  value={formData.tasaInteres}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Períodos */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="periodos">
-                <span>Número de Períodos</span>
-                <span className="form-hint">Meses / Ciclos</span>
-              </label>
-              <div className="input-wrapper">
-                <Calendar size={18} className="input-icon" />
-                <input
-                  id="periodos"
-                  name="periodos"
-                  type="number"
-                  min="1"
-                  max="120"
-                  className="form-input"
-                  value={formData.periodos}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Sistema / Tipo de Interés */}
-            <div className="form-group">
-              <label className="form-label">
-                <span>Tipo de Cálculo</span>
-              </label>
-              <div className="system-toggle">
-                <button
-                  type="button"
-                  className={`toggle-btn ${formData.tipo === 'compuesto' ? 'active' : ''}`}
-                  onClick={() => handleTipoChange('compuesto')}
-                >
-                  Compuesto
-                </button>
-                <button
-                  type="button"
-                  className={`toggle-btn ${formData.tipo === 'simple' ? 'active' : ''}`}
-                  onClick={() => handleTipoChange('simple')}
-                >
-                  Simple
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <RefreshCw size={18} className="spin" />
-                  Calculando...
-                </>
-              ) : (
-                <>
-                  <Activity size={18} />
-                  Calcular Simulación
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Sección de Resultados */}
-        <div className="results-container">
-          {error && (
-            <div className="error-banner">
-              <AlertCircle size={20} />
-              <div>
-                <strong>Error en la petición:</strong> {error}
-              </div>
-            </div>
-          )}
-
-          {resultado ? (
-            <>
-              {/* KPIs */}
-              <div className="stats-grid">
-                <div className="stat-card" style={{ '--card-accent': 'var(--secondary)' }}>
-                  <div className="stat-label">Inversión Total</div>
-                  <div className="stat-value">
-                    {formatCurrency(resultado.resumen.inversionTotal)}
+            {resultado ? (
+              <>
+                {/* KPIs */}
+                <div className="stats-grid">
+                  <div className="stat-card" style={{ '--card-accent': 'var(--secondary)' }}>
+                    <div className="stat-label">Inversión Total</div>
+                    <div className="stat-value">
+                      {formatCurrency(resultado.resumen.inversionTotal)}
+                    </div>
+                    <div className="stat-badge" style={{ color: 'var(--secondary)' }}>
+                      <Layers size={13} /> Capital aportado
+                    </div>
                   </div>
-                  <div className="stat-badge" style={{ color: 'var(--secondary)' }}>
-                    <Layers size={13} /> Capital aportado
+
+                  <div className="stat-card" style={{ '--card-accent': 'var(--accent)' }}>
+                    <div className="stat-label">Intereses Generados</div>
+                    <div className="stat-value" style={{ color: 'var(--accent)' }}>
+                      +{formatCurrency(resultado.resumen.totalIntereses)}
+                    </div>
+                    <div className="stat-badge">
+                      <ArrowUpRight size={13} /> Ganancia neta
+                    </div>
+                  </div>
+
+                  <div className="stat-card" style={{ '--card-accent': 'var(--primary-light)' }}>
+                    <div className="stat-label">Monto Final Proyectado</div>
+                    <div className="stat-value" style={{ color: '#ffffff' }}>
+                      {formatCurrency(resultado.resumen.montoFinal)}
+                    </div>
+                    <div className="stat-badge" style={{ color: 'var(--primary-light)' }}>
+                      <CheckCircle2 size={13} /> Saldo acumulado
+                    </div>
+                  </div>
+
+                  <div className="stat-card" style={{ '--card-accent': 'var(--warning)' }}>
+                    <div className="stat-label">Rendimiento Total</div>
+                    <div className="stat-value" style={{ color: 'var(--warning)' }}>
+                      {resultado.resumen.gananciaPorcentual}%
+                    </div>
+                    <div className="stat-badge" style={{ color: 'var(--warning)' }}>
+                      <Percent size={13} /> ROI acumulado
+                    </div>
                   </div>
                 </div>
 
-                <div className="stat-card" style={{ '--card-accent': 'var(--accent)' }}>
-                  <div className="stat-label">Intereses Generados</div>
-                  <div className="stat-value" style={{ color: 'var(--accent)' }}>
-                    +{formatCurrency(resultado.resumen.totalIntereses)}
+                {/* Barra de Proporción Capital vs Interés */}
+                <div className="progress-card">
+                  <div className="progress-header">
+                    <span>Composición del Capital Final</span>
+                    <span>{formatCurrency(resultado.resumen.montoFinal)}</span>
                   </div>
-                  <div className="stat-badge">
-                    <ArrowUpRight size={13} /> Ganancia neta
+                  <div className="progress-bar-track">
+                    <div
+                      className="progress-bar-fill-initial"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100
+                        )}%`
+                      }}
+                      title={`Capital Aportado: ${formatCurrency(resultado.resumen.inversionTotal)}`}
+                    />
+                    <div
+                      className="progress-bar-fill-interest"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100
+                        )}%`
+                      }}
+                      title={`Intereses: ${formatCurrency(resultado.resumen.totalIntereses)}`}
+                    />
+                  </div>
+                  <div className="progress-legend">
+                    <div className="legend-item">
+                      <div className="legend-dot" style={{ backgroundColor: 'var(--secondary)' }} />
+                      <span>
+                        Capital Aportado ({((resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-dot" style={{ backgroundColor: 'var(--accent)' }} />
+                      <span>
+                        Intereses ({((resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="stat-card" style={{ '--card-accent': 'var(--primary-light)' }}>
-                  <div className="stat-label">Monto Final Proyectado</div>
-                  <div className="stat-value" style={{ color: '#ffffff' }}>
-                    {formatCurrency(resultado.resumen.montoFinal)}
+                {/* Tabla de Desglose */}
+                <div className="glass-card">
+                  <div className="card-header">
+                    <h3 className="card-title">
+                      <Table size={18} color="var(--primary-light)" />
+                      Desglose por Período ({resultado.desglose.length} ciclos)
+                    </h3>
                   </div>
-                  <div className="stat-badge" style={{ color: 'var(--primary-light)' }}>
-                    <CheckCircle2 size={13} /> Saldo acumulado
-                  </div>
-                </div>
 
-                <div className="stat-card" style={{ '--card-accent': 'var(--warning)' }}>
-                  <div className="stat-label">Rendimiento Total</div>
-                  <div className="stat-value" style={{ color: 'var(--warning)' }}>
-                    {resultado.resumen.gananciaPorcentual}%
-                  </div>
-                  <div className="stat-badge" style={{ color: 'var(--warning)' }}>
-                    <Percent size={13} /> ROI acumulado
-                  </div>
-                </div>
-              </div>
-
-              {/* Barra de Proporción Capital vs Interés */}
-              <div className="progress-card">
-                <div className="progress-header">
-                  <span>Composición del Capital Final</span>
-                  <span>{formatCurrency(resultado.resumen.montoFinal)}</span>
-                </div>
-                <div className="progress-bar-track">
-                  <div
-                    className="progress-bar-fill-initial"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100
-                      )}%`
-                    }}
-                    title={`Capital Aportado: ${formatCurrency(resultado.resumen.inversionTotal)}`}
-                  />
-                  <div
-                    className="progress-bar-fill-interest"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100
-                      )}%`
-                    }}
-                    title={`Intereses: ${formatCurrency(resultado.resumen.totalIntereses)}`}
-                  />
-                </div>
-                <div className="progress-legend">
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ backgroundColor: 'var(--secondary)' }} />
-                    <span>
-                      Capital Aportado ({((resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ backgroundColor: 'var(--accent)' }} />
-                    <span>
-                      Intereses ({((resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabla de Desglose */}
-              <div className="glass-card">
-                <div className="card-header">
-                  <h3 className="card-title">
-                    <Table size={18} color="var(--primary-light)" />
-                    Desglose por Período ({resultado.desglose.length} ciclos)
-                  </h3>
-                </div>
-
-                <div className="table-wrapper">
-                  <table className="sim-table">
-                    <thead>
-                      <tr>
-                        <th>Período</th>
-                        <th>Aportación</th>
-                        <th>Interés Generado</th>
-                        <th>Saldo Acumulado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {resultado.desglose.map((fila) => (
-                        <tr key={fila.periodo}>
-                          <td><strong>Ciclo #{fila.periodo}</strong></td>
-                          <td className="num-cell">{formatCurrency(fila.aportacion)}</td>
-                          <td className="num-cell gain-positive">+{formatCurrency(fila.interesGanado)}</td>
-                          <td className="num-cell" style={{ fontWeight: 600 }}>
-                            {formatCurrency(fila.saldoFinal)}
-                          </td>
+                  <div className="table-wrapper">
+                    <table className="sim-table">
+                      <thead>
+                        <tr>
+                          <th>Período</th>
+                          <th>Aportación</th>
+                          <th>Interés Generado</th>
+                          <th>Saldo Acumulado</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {resultado.desglose.map((fila) => (
+                          <tr key={fila.periodo}>
+                            <td><strong>Ciclo #{fila.periodo}</strong></td>
+                            <td className="num-cell">{formatCurrency(fila.aportacion)}</td>
+                            <td className="num-cell gain-positive">+{formatCurrency(fila.interesGanado)}</td>
+                            <td className="num-cell" style={{ fontWeight: 600 }}>
+                              {formatCurrency(fila.saldoFinal)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            !loading && (
-              <div className="glass-card empty-state">
-                <div className="empty-icon">
-                  <Activity size={32} />
+              </>
+            ) : (
+              !loading && (
+                <div className="glass-card empty-state">
+                  <div className="empty-icon">
+                    <Activity size={32} />
+                  </div>
+                  <h3>Sin resultados todavía</h3>
+                  <p>Ingresa los parámetros y haz clic en "Calcular Simulación" para ver la proyección.</p>
                 </div>
-                <h3>Sin resultados todavía</h3>
-                <p>Ingresa los parámetros y haz clic en "Calcular Simulación" para ver la proyección.</p>
-              </div>
-            )
-          )}
+              )
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
