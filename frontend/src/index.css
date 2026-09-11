@@ -936,6 +936,28 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
 }
 
+/* Telón compartido por el menú de navegación y el panel de colores: cuando
+   uno de los dos está abierto, este telón cubre TODA la página por detrás
+   (position: fixed, z-index justo debajo del panel). Un clic en cualquier
+   parte de afuera cae sobre el telón y cierra el panel, en vez de colarse y
+   activar el botón o campo que hubiera debajo. También separa visualmente
+   el panel del resto de la página con un oscurecido suave, así ya no se
+   siente que el panel "se mezcla" con el fondo. */
+.ui-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  background: rgba(15, 15, 20, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.ui-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .nav-menu-trigger {
   display: inline-flex;
   align-items: center;

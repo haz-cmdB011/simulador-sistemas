@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Palette, RotateCcw, Check, X } from 'lucide-react';
 import { DEFAULT_THEME, THEME_PRESETS, applyTheme, loadTheme, saveTheme } from '../theme';
 
@@ -26,34 +27,61 @@ const ALL_FIELDS = [...INTERFACE_FIELDS, ...BACKGROUND_FIELDS];
  * al instante sobre toda la app y se recuerda entre sesiones en este
  * navegador.
  *
- * A diferencia del resto de los paneles, este NO usa el efecto de vidrio
- * translúcido: su fondo es sólido a propósito. Si fuera transparente,
- * mientras el usuario elige un color el panel mostraría ese mismo color
- * "sangrando" a través de su propio fondo (porque las manchas de vidrio que
- * está editando están literalmente detrás de él), lo que hacía difícil ver
- * bien qué color se estaba escogiendo. Un panel sólido evita esa confusión.
+ * El panel (igual que el menú de navegación) se renderiza con un portal
+ * directo a <body>, junto con su telón, y su posición se calcula a mano con
+ * getBoundingClientRect() sobre el botón que lo abre. Es necesario porque el
+ * botón vive dentro de una tarjeta de vidrio (glass-card) que usa
+ * backdrop-filter, y backdrop-filter crea su propio "contexto de
+ * apilamiento": cualquier overlay que se quede adentro, aunque tenga
+ * position:fixed y un z-index alto, queda atrapado ahí y una tarjeta hermana
+ * que aparece después en la página (el simulador, por ejemplo) puede
+ * pintarse ENCIMA de él. Sacándolo por portal, el panel vive directamente
+ * bajo <body> y ya no compite por capas ni se mezcla visualmente con nada
+ * de atrás — y por lo tanto tampoco deja pasar clics hacia lo que hay debajo.
+ *
+ * Además, a propósito, el panel en sí es sólido (nada de vidrio
+ * translúcido): si fuera transparente, mientras el usuario elige un color
+ * vería ese mismo color asomándose por detrás del panel, porque las manchas
+ * que está editando están justo ahí.
  */
 export const ThemeCustomizer = () => {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState(loadTheme);
-  const wrapperRef = useRef(null);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const triggerRef = useRef(null);
+
+  const computeCoords = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setCoords({
+      top: rect.bottom + 8,
+      right: Math.max(16, window.innerWidth - rect.right)
+    });
+  }, []);
+
+  const toggleOpen = () => {
+    if (!open) computeCoords();
+    setOpen((v) => !v);
+  };
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
+    if (!open) return;
+    // Si la página se desplaza o cambia de tamaño mientras está abierto, el
+    // panel quedaría apuntando a una posición vieja — más simple y
+    // predecible cerrarlo que intentar perseguir al botón en tiempo real.
+    const closeOnMove = () => setOpen(false);
     const handleEscape = (e) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', closeOnMove, true);
+    window.addEventListener('resize', closeOnMove);
     document.addEventListener('keydown', handleEscape);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', closeOnMove, true);
+      window.removeEventListener('resize', closeOnMove);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, []);
+  }, [open]);
 
   const updateTheme = (next) => {
     setTheme(next);
@@ -75,11 +103,12 @@ export const ThemeCustomizer = () => {
   };
 
   return (
-    <div className="nav-menu-wrapper" ref={wrapperRef}>
+    <div className="nav-menu-wrapper">
       <button
         type="button"
+        ref={triggerRef}
         className="nav-menu-trigger"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-expanded={open}
         title="Personalizar los colores de la interfaz y el fondo"
       >
@@ -87,84 +116,103 @@ export const ThemeCustomizer = () => {
         <span>Colores</span>
       </button>
 
-      <div className={`theme-panel ${open ? 'open' : ''}`} role="dialog" aria-hidden={!open}>
-        <div className="theme-panel-header">
-          <h4>Personalizar apariencia</h4>
-          <button
-            type="button"
-            className="theme-reset-btn"
-            onClick={resetToDefault}
-            title="Volver a los colores de fábrica"
+      {createPortal(
+        <>
+          {/* Telón: separa visualmente el panel del resto de la página y
+              asegura que un clic afuera cierre el panel en vez de activar lo
+              que está detrás. */}
+          <div
+            className={`ui-backdrop ${open ? 'open' : ''}`}
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div
+            className={`theme-panel ${open ? 'open' : ''}`}
+            role="dialog"
+            aria-hidden={!open}
+            style={{ top: coords.top, right: coords.right }}
           >
-            <RotateCcw size={13} />
-            <span>Restablecer</span>
-          </button>
-        </div>
-
-        <p className="theme-panel-hint">
-          Elige una paleta lista o ajusta cada color abajo. Los cambios se ven al instante.
-        </p>
-
-        <div className="theme-presets-row">
-          {THEME_PRESETS.map((preset) => {
-            const isActive = ALL_FIELDS.every((f) => theme[f.key] === preset[f.key]);
-            return (
+            <div className="theme-panel-header">
+              <h4>Personalizar apariencia</h4>
               <button
-                key={preset.id}
                 type="button"
-                className={`theme-preset-swatch ${isActive ? 'active' : ''}`}
-                title={preset.label}
-                onClick={() => applyPreset(preset)}
-                style={{
-                  background: `linear-gradient(135deg, ${preset.blob1} 0%, ${preset.blob2} 45%, ${preset.blob4} 100%)`
-                }}
+                className="theme-reset-btn"
+                onClick={resetToDefault}
+                title="Volver a los colores de fábrica"
               >
-                {isActive && <Check size={14} color="#fff" />}
+                <RotateCcw size={13} />
+                <span>Restablecer</span>
               </button>
-            );
-          })}
-        </div>
-        <p className="theme-section-caption">Paletas rápidas</p>
+            </div>
 
-        <p className="theme-section-caption theme-section-caption-spaced">Colores de la interfaz</p>
-        <div className="theme-fields-grid">
-          {INTERFACE_FIELDS.map((field) => (
-            <label key={field.key} className="theme-field" title={theme[field.key]}>
-              <span className="theme-field-swatch" style={{ background: theme[field.key] }}>
-                <input
-                  type="color"
-                  value={theme[field.key]}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                  aria-label={field.label}
-                />
-              </span>
-              <span className="theme-field-label">{field.label}</span>
-            </label>
-          ))}
-        </div>
+            <p className="theme-panel-hint">
+              Elige una paleta lista o ajusta cada color abajo. Los cambios se ven al instante.
+            </p>
 
-        <p className="theme-section-caption theme-section-caption-spaced">Manchas de color del fondo</p>
-        <div className="theme-fields-grid">
-          {BACKGROUND_FIELDS.map((field) => (
-            <label key={field.key} className="theme-field" title={theme[field.key]}>
-              <span className="theme-field-swatch" style={{ background: theme[field.key] }}>
-                <input
-                  type="color"
-                  value={theme[field.key]}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                  aria-label={field.label}
-                />
-              </span>
-              <span className="theme-field-label">{field.label}</span>
-            </label>
-          ))}
-        </div>
+            <div className="theme-presets-row">
+              {THEME_PRESETS.map((preset) => {
+                const isActive = ALL_FIELDS.every((f) => theme[f.key] === preset[f.key]);
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`theme-preset-swatch ${isActive ? 'active' : ''}`}
+                    title={preset.label}
+                    onClick={() => applyPreset(preset)}
+                    style={{
+                      background: `linear-gradient(135deg, ${preset.blob1} 0%, ${preset.blob2} 45%, ${preset.blob4} 100%)`
+                    }}
+                  >
+                    {isActive && <Check size={14} color="#fff" />}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="theme-section-caption">Paletas rápidas</p>
 
-        <button type="button" className="theme-done-btn" onClick={() => setOpen(false)}>
-          <X size={14} />
-          <span>Listo</span>
-        </button>
-      </div>
+            <p className="theme-section-caption theme-section-caption-spaced">Colores de la interfaz</p>
+            <div className="theme-fields-grid">
+              {INTERFACE_FIELDS.map((field) => (
+                <label key={field.key} className="theme-field" title={theme[field.key]}>
+                  <span className="theme-field-swatch" style={{ background: theme[field.key] }}>
+                    <input
+                      type="color"
+                      value={theme[field.key]}
+                      onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                      aria-label={field.label}
+                    />
+                  </span>
+                  <span className="theme-field-label">{field.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <p className="theme-section-caption theme-section-caption-spaced">Manchas de color del fondo</p>
+            <div className="theme-fields-grid">
+              {BACKGROUND_FIELDS.map((field) => (
+                <label key={field.key} className="theme-field" title={theme[field.key]}>
+                  <span className="theme-field-swatch" style={{ background: theme[field.key] }}>
+                    <input
+                      type="color"
+                      value={theme[field.key]}
+                      onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                      aria-label={field.label}
+                    />
+                  </span>
+                  <span className="theme-field-label">{field.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <button type="button" className="theme-done-btn" onClick={() => setOpen(false)}>
+              <X size={14} />
+              <span>Listo</span>
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 };
