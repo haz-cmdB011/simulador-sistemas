@@ -55,4 +55,34 @@ async function requireDesarrollador(req, res, next) {
   }
 }
 
-module.exports = { requireDesarrollador };
+/**
+ * Middleware que solo exige un JWT válido de Supabase Auth, sin importar el
+ * rol del usuario. Se usa para rutas que cualquier cuenta autenticada puede
+ * usar sobre sí misma (por ejemplo, subir su propia foto de perfil).
+ */
+async function requireAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+    if (!token) {
+      return res.status(401).json({ error: 'Falta el token de autenticación (header Authorization).' });
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({
+        error: 'Token inválido o expirado. Vuelve a iniciar sesión.',
+        details: userError?.message || 'Sin usuario en la respuesta de Supabase.'
+      });
+    }
+
+    req.authUser = userData.user;
+    next();
+  } catch (err) {
+    console.error('[Auth Middleware] Error inesperado:', err.message);
+    return res.status(500).json({ error: 'Error interno al verificar la autenticación.' });
+  }
+}
+
+module.exports = { requireDesarrollador, requireAuth };

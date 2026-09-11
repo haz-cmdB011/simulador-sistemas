@@ -6,6 +6,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminUserManager from './components/AdminUserManager';
 import NavMenu from './components/NavMenu';
 import ThemeCustomizer from './components/ThemeCustomizer';
+import AvatarUploader from './components/AvatarUploader';
+import PixelCatEasterEgg from './components/PixelCatEasterEgg';
 import {
   TrendingUp,
   DollarSign,
@@ -283,9 +285,7 @@ function SimuladorContent() {
       {/* Top User Session Navigation */}
       <div className="user-session-bar glass-card">
         <div className="user-profile-info">
-          <div className="user-avatar">
-            {user?.nombre?.charAt(0).toUpperCase() || 'U'}
-          </div>
+          <AvatarUploader apiUrl={API_URL} />
           <div>
             <div className="user-name-row">
               <span className="user-display-name">{user?.nombre}</span>
@@ -883,6 +883,7 @@ function App() {
   return (
     <AuthProvider>
       <AuthGate />
+      <PixelCatEasterEgg />
     </AuthProvider>
   );
 }

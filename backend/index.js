@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { supabase, guardarSimulacion } = require('./src/supabaseClient');
 const { supabaseAdmin } = require('./src/supabaseAdmin');
-const { requireDesarrollador } = require('./src/authMiddleware');
+const { requireDesarrollador, requireAuth } = require('./src/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,7 +57,10 @@ app.use(cors({
     return callback(null, false);
   }
 }));
-app.use(express.json());
+// Límite subido a 6mb (el default de Express es 100kb): la foto de perfil
+// viaja como base64 dentro del JSON, y base64 pesa ~33% más que el archivo
+// original, así que una imagen de 3-4mb necesita margen extra.
+app.use(express.json({ limit: '6mb' }));
 
 // Ruta raíz
 app.get('/', (req, res) => res.json({ status: 'OK', mensaje: 'API del Simulador funcionando' }));
@@ -159,6 +162,101 @@ app.post('/api/simular', async (req, res) => {
       error: 'Error interno del servidor al procesar la simulación',
       details: error.message
     });
+  }
+});
+
+// ============================================================
+// Foto de perfil — cualquier usuario autenticado puede subir/quitar la suya
+// ============================================================
+
+const MIME_A_EXTENSION = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp'
+};
+const AVATAR_MAX_BYTES = 3 * 1024 * 1024; // 3MB, igual que el límite del bucket
+
+// POST /api/perfil/avatar — recibe la imagen como data URL base64
+// ("data:image/png;base64,....") y la sube al bucket 'avatars', reemplazando
+// cualquier foto anterior de ese mismo usuario (upsert). Se hace con la
+// service role key desde el backend, en vez de subir directo desde el
+// navegador, así no hace falta abrir políticas de escritura en Storage para
+// usuarios comunes.
+app.post('/api/perfil/avatar', requireAuth, async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'El servicio de almacenamiento no está configurado en el servidor.' });
+    }
+
+    const { imagenBase64 } = req.body;
+    if (!imagenBase64 || typeof imagenBase64 !== 'string') {
+      return res.status(400).json({ error: 'Falta la imagen (imagenBase64).' });
+    }
+
+    const match = imagenBase64.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+    if (!match) {
+      return res.status(400).json({ error: 'Formato de imagen no válido. Usa PNG, JPG o WEBP.' });
+    }
+
+    const [, mimeType, base64Data] = match;
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    if (buffer.length > AVATAR_MAX_BYTES) {
+      return res.status(400).json({ error: 'La imagen es demasiado grande. Máximo 3MB.' });
+    }
+
+    const extension = MIME_A_EXTENSION[mimeType];
+    const rutaArchivo = `${req.authUser.id}/avatar.${extension}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(rutaArchivo, buffer, { contentType: mimeType, upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data: publicUrlData } = supabaseAdmin.storage.from('avatars').getPublicUrl(rutaArchivo);
+    // Se le agrega un parámetro de caché al final para que el navegador no
+    // siga mostrando la foto vieja aunque la URL base sea la misma.
+    const avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+    const { error: updateError } = await supabaseAdmin
+      .from('perfiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', req.authUser.id);
+
+    if (updateError) throw updateError;
+
+    return res.json({ success: true, avatarUrl });
+  } catch (error) {
+    console.error('Error al subir foto de perfil:', error);
+    return res.status(500).json({ error: 'No se pudo subir la foto de perfil.', details: error.message });
+  }
+});
+
+// DELETE /api/perfil/avatar — quita la foto de perfil del usuario actual.
+app.delete('/api/perfil/avatar', requireAuth, async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'El servicio de almacenamiento no está configurado en el servidor.' });
+    }
+
+    const carpetaUsuario = `${req.authUser.id}`;
+    const { data: archivos } = await supabaseAdmin.storage.from('avatars').list(carpetaUsuario);
+    if (archivos?.length) {
+      await supabaseAdmin.storage.from('avatars').remove(archivos.map((f) => `${carpetaUsuario}/${f.name}`));
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('perfiles')
+      .update({ avatar_url: null })
+      .eq('id', req.authUser.id);
+
+    if (updateError) throw updateError;
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error al quitar foto de perfil:', error);
+    return res.status(500).json({ error: 'No se pudo quitar la foto de perfil.', details: error.message });
   }
 });
 

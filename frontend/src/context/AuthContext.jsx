@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }) => {
         nivel: hierarchyInfo.nivel,
         peso: hierarchyInfo.peso,
         nivel_prioridad: perfil?.nivel_prioridad || hierarchyInfo.nivel,
+        avatarUrl: perfil?.avatar_url || null,
         perfil: perfil || null,
         token: currentSession?.access_token || null
       };
@@ -262,6 +263,13 @@ export const AuthProvider = ({ children }) => {
     return { success: true, data };
   };
 
+  // Actualiza localmente la foto de perfil del usuario en sesión, sin volver
+  // a consultar toda la tabla 'perfiles'. Se usa justo después de subir o
+  // quitar la foto, ya que el backend ya confirmó el cambio en la base.
+  const setAvatarUrl = (avatarUrl) => {
+    setUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+  };
+
   // Cerrar Sesión
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -308,6 +316,7 @@ export const AuthProvider = ({ children }) => {
         resetPassword,
         updatePassword,
         hasRole,
+        setAvatarUrl,
         canAccessMinWeight,
         canDelete,
         canEditCritical,
