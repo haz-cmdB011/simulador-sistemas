@@ -49,13 +49,25 @@ export const ThemeCustomizer = () => {
   const [theme, setTheme] = useState(loadTheme);
   const [coords, setCoords] = useState({ top: 0, right: 0 });
   const triggerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const computeCoords = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const margen = 16;
+    // Igual que en NavMenu: alinear el borde derecho del panel con el del
+    // botón se rompe en pantallas angostas cuando el botón queda del lado
+    // izquierdo de la barra de sesión — el panel terminaba con su borde
+    // izquierdo fuera de la pantalla, cortando el texto ("Personalizar
+    // apariencia" se veía como "...cia"). Se mide el ancho real del panel
+    // (ya está en el DOM, solo oculto) y se limita "right" para que nunca
+    // se salga del viewport.
+    const anchoPanel = panelRef.current?.offsetWidth || 300;
+    const rightIdeal = window.innerWidth - rect.right;
+    const rightMax = Math.max(margen, window.innerWidth - anchoPanel - margen);
     setCoords({
       top: rect.bottom + 8,
-      right: Math.max(16, window.innerWidth - rect.right)
+      right: Math.min(Math.max(rightIdeal, margen), rightMax)
     });
   }, []);
 
@@ -128,6 +140,7 @@ export const ThemeCustomizer = () => {
           />
 
           <div
+            ref={panelRef}
             className={`theme-panel ${open ? 'open' : ''}`}
             role="dialog"
             aria-hidden={!open}

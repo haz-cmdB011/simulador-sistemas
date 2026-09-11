@@ -27,13 +27,25 @@ export const NavMenu = ({ items, activeId, onSelect }) => {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, right: 0 });
   const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   const computeCoords = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const margen = 16;
+    // Alinear el borde derecho del menú con el del botón se ve bien cuando
+    // el botón está cerca de la orilla derecha, pero en pantallas angostas
+    // (celular) el botón puede quedar del lado izquierdo de la barra de
+    // sesión — ahí ese mismo cálculo empuja el menú tan a la derecha que su
+    // borde IZQUIERDO termina fuera de la pantalla, cortando el texto. Por
+    // eso se mide el ancho real del menú (ya está en el DOM, solo oculto) y
+    // se limita "right" para que el menú siempre quede dentro del viewport.
+    const anchoMenu = dropdownRef.current?.offsetWidth || 280;
+    const rightIdeal = window.innerWidth - rect.right;
+    const rightMax = Math.max(margen, window.innerWidth - anchoMenu - margen);
     setCoords({
       top: rect.bottom + 8,
-      right: Math.max(16, window.innerWidth - rect.right)
+      right: Math.min(Math.max(rightIdeal, margen), rightMax)
     });
   }, []);
 
@@ -88,6 +100,7 @@ export const NavMenu = ({ items, activeId, onSelect }) => {
           />
 
           <div
+            ref={dropdownRef}
             className={`nav-menu-dropdown ${open ? 'open' : ''}`}
             role="menu"
             aria-hidden={!open}

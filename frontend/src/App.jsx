@@ -37,7 +37,7 @@ import FoodMenu from './components/FoodMenu';
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
 function SimuladorContent() {
-  const { user, logout, hasRole, isDesarrollador, canDelete } = useAuth();
+  const { user, logout, hasRole, isDesarrollador, isAdministrativo, canDelete } = useAuth();
 
   // Sección visible actualmente. En vez de mostrar todos los paneles al
   // mismo tiempo (lo cual saturaba la pantalla de información), solo se
@@ -223,31 +223,37 @@ function SimuladorContent() {
 
           <ThemeCustomizer />
 
-          <div className="status-badge">
-            <div
-              className={`status-dot ${
-                serverOnline === null
-                  ? 'checking'
+          {/* El estado del backend es información técnica: solo tiene
+              sentido para quien administra el sistema (Desarrollador o
+              Administrativo). Operador y Usuario no lo necesitan y quitarlo
+              también libera espacio en pantallas angostas. */}
+          {isAdministrativo && (
+            <div className="status-badge">
+              <div
+                className={`status-dot ${
+                  serverOnline === null
+                    ? 'checking'
+                    : serverOnline
+                    ? 'online'
+                    : 'offline'
+                }`}
+              />
+              <span>
+                {serverOnline === null
+                  ? 'Verificando API...'
                   : serverOnline
-                  ? 'online'
-                  : 'offline'
-              }`}
-            />
-            <span>
-              {serverOnline === null
-                ? 'Verificando API...'
-                : serverOnline
-                ? 'Backend API Conectado'
-                : 'Backend Desconectado'}
-            </span>
-            <button
-              onClick={checkHealth}
-              title="Reintentar conexión"
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              <RefreshCw size={13} />
-            </button>
-          </div>
+                  ? 'Backend API Conectado'
+                  : 'Backend Desconectado'}
+              </span>
+              <button
+                onClick={checkHealth}
+                title="Reintentar conexión"
+                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
+          )}
 
           <button onClick={logout} className="btn-logout" title="Cerrar Sesión">
             <LogOut size={16} />
