@@ -5,6 +5,7 @@ import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminUserManager from './components/AdminUserManager';
 import NavMenu from './components/NavMenu';
+import ThemeCustomizer from './components/ThemeCustomizer';
 import {
   TrendingUp,
   DollarSign,
@@ -298,6 +299,8 @@ function SimuladorContent() {
           {menuItems.length > 1 && (
             <NavMenu items={menuItems} activeId={activeSection} onSelect={setActiveSection} />
           )}
+
+          <ThemeCustomizer />
 
           <div className="status-badge">
             <div

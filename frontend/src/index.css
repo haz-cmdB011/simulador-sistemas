@@ -6,15 +6,19 @@
      color detrás del panel, al estilo visionOS / iOS 18+ */
   --bg-main: #eef0f3;
   --bg-surface: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.55);
-  --bg-card-hover: rgba(255, 255, 255, 0.68);
-  --bg-glass: rgba(255, 255, 255, 0.35);
-  --bg-input: rgba(255, 255, 255, 0.6);
+  --bg-card: rgba(255, 255, 255, 0.42);
+  --bg-card-hover: rgba(255, 255, 255, 0.56);
+  --bg-glass: rgba(255, 255, 255, 0.3);
+  --bg-input: rgba(255, 255, 255, 0.55);
 
-  --border-subtle: rgba(255, 255, 255, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.6);
   --border-focus: #0071e3;
   --border-glow: rgba(0, 113, 227, 0.2);
 
+  /* Colores de acento y de las manchas de vidrio de fondo: son variables
+     independientes (no fijas en cada regla) para que el panel de
+     personalización de colores pueda reescribirlas en caliente con
+     document.documentElement.style.setProperty(...) */
   --primary: #0071e3;
   --primary-hover: #0077ed;
   --primary-light: #2997ff;
@@ -26,6 +30,12 @@
   --accent: #34c759;
   --accent-glow: rgba(52, 199, 89, 0.2);
 
+  --blob-1: #2997ff;
+  --blob-2: #5e5ce6;
+  --blob-3: #34c759;
+  --blob-4: #ff9500;
+  --blob-5: #db2777;
+
   --danger: #ff3b30;
   --warning: #ff9500;
 
@@ -34,16 +44,17 @@
   --text-muted: #86868b;
 
   /* Filtro de vidrio: blur + saturación + brillo, como un panel real de
-     Liquid Glass que distorsiona y realza lo que tiene detrás */
-  --glass-filter: blur(28px) saturate(190%) brightness(1.08);
-  --glass-filter-strong: blur(40px) saturate(200%) brightness(1.1);
+     Liquid Glass que distorsiona y realza lo que tiene detrás. Más fuerte
+     que un blur "de tarjeta" normal para que el color de fondo se note. */
+  --glass-filter: blur(36px) saturate(220%) brightness(1.12);
+  --glass-filter-strong: blur(52px) saturate(230%) brightness(1.16);
 
   /* Sombra compuesta: sombra exterior suave + brillo interior en el borde
      superior (el "reflejo" del vidrio) + sombra interior tenue abajo */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  --shadow-md: 0 8px 28px rgba(31, 38, 70, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.65), inset 0 -1px 1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 20px 50px rgba(31, 38, 70, 0.16), inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 1px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 10px 24px rgba(0, 113, 227, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-md: 0 10px 32px rgba(31, 38, 70, 0.13), inset 0 1px 1px rgba(255, 255, 255, 0.75), inset 0 -1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 24px 60px rgba(31, 38, 70, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 12px 28px rgba(0, 113, 227, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -52,7 +63,11 @@
 
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Curva "con rebote" para aperturas de menús y paneles: se siente más
+     fluida y viva que un ease-out plano, similar a las animaciones de
+     UIKit/SwiftUI cuando aparece un panel de vidrio */
+  --transition-spring: 0.55s cubic-bezier(0.19, 1.4, 0.4, 1);
 }
 
 * {
@@ -70,29 +85,34 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image:
-    radial-gradient(circle at 8% 8%, rgba(0, 113, 227, 0.35) 0%, transparent 38%),
-    radial-gradient(circle at 92% 15%, rgba(94, 92, 230, 0.3) 0%, transparent 40%),
-    radial-gradient(circle at 15% 90%, rgba(52, 199, 89, 0.22) 0%, transparent 40%),
-    radial-gradient(circle at 88% 92%, rgba(255, 149, 0, 0.2) 0%, transparent 38%),
-    radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.12) 0%, transparent 55%);
+    radial-gradient(circle at 8% 8%, color-mix(in srgb, var(--blob-1) 45%, transparent) 0%, transparent 38%),
+    radial-gradient(circle at 92% 15%, color-mix(in srgb, var(--blob-2) 42%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 15% 90%, color-mix(in srgb, var(--blob-3) 32%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 88% 92%, color-mix(in srgb, var(--blob-4) 30%, transparent) 0%, transparent 38%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--blob-5) 20%, transparent) 0%, transparent 55%);
   background-attachment: fixed;
+  transition: background-color var(--transition-smooth);
 }
 
 /* Manchas de color de fondo: le dan al vidrio algo vivo que refractar. Se
    quedan fijas detrás de todo (z-index -1) mientras el contenido se desplaza
-   por encima, como en las páginas de producto de Apple con Liquid Glass. */
+   por encima, como en las páginas de producto de Apple con Liquid Glass.
+   Usan las mismas variables --blob-1..5 que el panel de personalización
+   reescribe, así que cambian de color al instante junto con el resto. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(circle at 20% 20%, rgba(41, 151, 255, 0.4) 0%, transparent 32%),
-    radial-gradient(circle at 80% 25%, rgba(94, 92, 230, 0.35) 0%, transparent 34%),
-    radial-gradient(circle at 30% 80%, rgba(52, 199, 89, 0.3) 0%, transparent 32%),
-    radial-gradient(circle at 85% 85%, rgba(255, 149, 0, 0.28) 0%, transparent 32%);
-  filter: blur(60px);
-  opacity: 0.7;
+    radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--blob-1) 58%, transparent) 0%, transparent 34%),
+    radial-gradient(circle at 80% 22%, color-mix(in srgb, var(--blob-2) 52%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 28% 82%, color-mix(in srgb, var(--blob-3) 46%, transparent) 0%, transparent 34%),
+    radial-gradient(circle at 85% 88%, color-mix(in srgb, var(--blob-4) 42%, transparent) 0%, transparent 34%),
+    radial-gradient(circle at 55% 50%, color-mix(in srgb, var(--blob-5) 28%, transparent) 0%, transparent 45%);
+  filter: blur(70px);
+  opacity: 0.85;
+  transition: opacity var(--transition-smooth);
 }
 
 /* Base Typography */
@@ -212,18 +232,21 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
   box-shadow: var(--shadow-md);
-  overflow: hidden;
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal);
 }
 
 /* Reflejo especular: un arco de luz sutil en la esquina superior izquierda,
-   como la refracción que se ve en un panel de vidrio real */
+   como la refracción que se ve en un panel de vidrio real. Usa
+   border-radius: inherit (no overflow: hidden en la tarjeta) para que
+   quede recortado a la forma redondeada sin cortar contenido que se
+   desborda a propósito, como el menú desplegable del panel de sesión. */
 .glass-card::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(120% 60% at 15% 0%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%);
+  border-radius: inherit;
+  background: radial-gradient(120% 65% at 15% 0%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 55%);
   pointer-events: none;
 }
 
@@ -606,7 +629,6 @@ h1, h2, h3, h4, h5, h6 {
 .auth-card {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   width: 100%;
   max-width: 480px;
   padding: 2.25rem;
@@ -623,7 +645,8 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(120% 55% at 20% 0%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 55%);
+  border-radius: inherit;
+  background: radial-gradient(120% 55% at 20% 0%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 55%);
   pointer-events: none;
 }
 
@@ -887,20 +910,43 @@ h1, h2, h3, h4, h5, h6 {
 
 .nav-menu-dropdown {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: calc(100% + 0.6rem);
   right: 0;
   min-width: 280px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter-strong);
+  -webkit-backdrop-filter: var(--glass-filter-strong);
   padding: 0.4rem;
-  z-index: 50;
+  z-index: 200;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  /* Oculto por defecto: se anima con la clase .open en vez de
+     montarse/desmontarse de golpe, así la apertura y el cierre tienen
+     transición suave en lugar de aparecer/desaparecer instantáneamente. */
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  pointer-events: none;
+  transform-origin: top right;
+  transition: opacity var(--transition-spring), transform var(--transition-spring), visibility 0s linear 0.35s;
+  visibility: hidden;
+}
+
+.nav-menu-dropdown.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity var(--transition-spring), transform var(--transition-spring), visibility 0s;
+}
+
+@media (max-width: 640px) {
+  .nav-menu-dropdown {
+    transform-origin: top left;
+  }
 }
 
 .nav-menu-item {
@@ -914,13 +960,14 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-normal), color var(--transition-normal), transform var(--transition-normal);
   width: 100%;
 }
 
 .nav-menu-item:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--text-primary);
+  transform: translateX(2px);
 }
 
 .nav-menu-item.active {
@@ -1188,4 +1235,164 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   margin-bottom: 0.5rem;
+}
+
+/* ==========================================================================
+   Panel de personalización de color ("Colores")
+   ========================================================================== */
+
+.theme-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 2.5rem);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: var(--glass-filter-strong);
+  -webkit-backdrop-filter: var(--glass-filter-strong);
+  padding: 1rem;
+  z-index: 200;
+
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  pointer-events: none;
+  transform-origin: top right;
+  visibility: hidden;
+  transition: opacity var(--transition-spring), transform var(--transition-spring), visibility 0s linear 0.35s;
+}
+
+.theme-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity var(--transition-spring), transform var(--transition-spring), visibility 0s;
+}
+
+@media (max-width: 640px) {
+  .theme-panel {
+    right: auto;
+    left: 0;
+    transform-origin: top left;
+  }
+}
+
+.theme-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.theme-panel-header h4 {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.theme-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.theme-reset-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+
+.theme-presets-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.theme-preset-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-spring);
+}
+
+.theme-preset-swatch:hover {
+  transform: scale(1.12);
+}
+
+.theme-preset-swatch.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary), var(--shadow-sm);
+}
+
+.theme-presets-caption {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.theme-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.theme-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.theme-field-swatch {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform var(--transition-spring);
+}
+
+.theme-field-swatch:hover {
+  transform: scale(1.1);
+}
+
+.theme-field-swatch input[type='color'] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.theme-field-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.15;
 }
