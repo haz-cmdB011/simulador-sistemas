@@ -10,18 +10,10 @@ import AvatarUploader from './components/AvatarUploader';
 import PixelCatEasterEgg from './components/PixelCatEasterEgg';
 import {
   TrendingUp,
-  DollarSign,
-  Percent,
-  Calendar,
-  Layers,
   Activity,
-  ArrowUpRight,
-  Sparkles,
   RefreshCw,
   AlertCircle,
-  PiggyBank,
   CheckCircle2,
-  Table,
   LogOut,
   ShieldAlert,
   ShieldCheck,
@@ -32,45 +24,50 @@ import {
   Trash2,
   Lock,
   Flame,
-  Calculator,
+  LayoutGrid,
+  Music2,
+  ShoppingCart,
+  UtensilsCrossed,
   Users
 } from 'lucide-react';
+import MusicPlayer from './components/MusicPlayer';
+import DigitalStore from './components/DigitalStore';
+import FoodMenu from './components/FoodMenu';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
 
 function SimuladorContent() {
-  const { user, logout, hasRole, isDesarrollador, isAdministrativo, canDelete, canEditCritical } = useAuth();
+  const { user, logout, hasRole, isDesarrollador, canDelete } = useAuth();
 
   // Sección visible actualmente. En vez de mostrar todos los paneles al
   // mismo tiempo (lo cual saturaba la pantalla de información), solo se
   // muestra uno a la vez, elegido desde el menú desplegable.
   const [activeSection, setActiveSection] = useState('simulador');
 
-  const [formData, setFormData] = useState({
-    inversionInicial: 5000,
-    tasaInteres: 8, // Expresado en % para el usuario
-    periodos: 12,
-    tipo: 'compuesto',
-    aportacionMensual: 200
-  });
+  // Sistema simulado activo dentro del panel "Sistemas" (submenú interno):
+  // música, tienda o comida.
+  const [activeSystem, setActiveSystem] = useState('musica');
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [resultado, setResultado] = useState(null);
   const [serverOnline, setServerOnline] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [notification, setNotification] = useState(null);
 
+  const SISTEMAS = [
+    { id: 'musica', label: 'Música', icon: Music2, description: 'Reproductor simulado, estilo Spotify' },
+    { id: 'tienda', label: 'Tienda', icon: ShoppingCart, description: 'Marketplace digital, estilo Amazon' },
+    { id: 'comida', label: 'Comida', icon: UtensilsCrossed, description: 'Pedidos a domicilio, estilo Uber Eats / Didi' }
+  ];
+
   // Secciones del menú, armadas según lo que puede ver cada rol. Un
-  // Desarrollador ve las cuatro; un Administrativo ve Simulador +
-  // Supervisión; Operador y Usuario solo ven el Simulador.
+  // Desarrollador ve las cuatro; un Administrativo ve Sistemas +
+  // Supervisión; Operador y Usuario solo ven Sistemas.
   const menuItems = useMemo(() => {
     const items = [
       {
         id: 'simulador',
-        label: 'Simulador',
-        icon: Calculator,
-        description: 'Calcular proyecciones financieras'
+        label: 'Sistemas',
+        icon: LayoutGrid,
+        description: 'Música, tienda y pedidos de comida simulados'
       }
     ];
 
@@ -92,7 +89,7 @@ function SimuladorContent() {
         id: 'supervision',
         label: 'Panel de Supervisión',
         icon: ShieldAlert,
-        description: 'Monitoreo y auditoría de cálculos'
+        description: 'Monitoreo y auditoría de actividad'
       });
     }
 
@@ -124,74 +121,22 @@ function SimuladorContent() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleTipoChange = (tipo) => {
-    setFormData((prev) => ({ ...prev, tipo }));
-  };
-
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const payload = {
-        inversionInicial: Number(formData.inversionInicial),
-        tasaInteres: Number(formData.tasaInteres) / 100,
-        periodos: Number(formData.periodos),
-        tipo: formData.tipo,
-        aportacionMensual: Number(formData.aportacionMensual || 0)
-      };
-
-      const response = await fetch(`${API_URL}/api/simular`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Error al procesar la simulación');
-      }
-
-      setResultado(data.data);
-      setServerOnline(true);
-
-      // Registrar en bitácora de auditoría para niveles administrativos y desarrollador
-      if (isAdministrativo) {
-        setAuditLogs((prev) => [
-          {
-            id: Date.now(),
-            fecha: new Date().toLocaleTimeString(),
-            usuario: user.email,
-            rol: user.rol,
-            monto: data.data.resumen.montoFinal,
-            tipo: formData.tipo,
-            inversion: data.data.resumen.inversionTotal
-          },
-          ...prev.slice(0, 19)
-        ]);
-      }
-    } catch (err) {
-      console.error('Error al simular:', err);
-      setError(
-        err.message.includes('Failed to fetch')
-          ? 'No se pudo conectar con el servidor backend en Render. Asegúrate de que esté activo.'
-          : err.message
-      );
-    } finally {
-      setLoading(false);
-    }
+  // Registra una actividad (compra en la tienda, pedido de comida) en la
+  // bitácora que ven los paneles de Consola Maestra y Supervisión. Sustituye
+  // al registro de simulaciones financieras que existía antes.
+  const registrarActividad = ({ tipo, detalle, monto }) => {
+    setAuditLogs((prev) => [
+      {
+        id: Date.now(),
+        fecha: new Date().toLocaleTimeString(),
+        usuario: user.email,
+        rol: user.rol,
+        tipo,
+        detalle,
+        monto
+      },
+      ...prev.slice(0, 19)
+    ]);
   };
 
   // Acción destructiva: Eliminar registro individual de auditoría (Exclusivo Desarrollador)
@@ -215,30 +160,6 @@ function SimuladorContent() {
       showNotification('Bitácora de auditoría purgada por el Desarrollador.', 'success');
     }
   };
-
-  // Acción destructiva: Restablecer valores de prueba (Exclusivo Desarrollador)
-  const handleResetTestDatabase = () => {
-    if (!canDelete) {
-      showNotification('Acción bloqueada: Permiso reservado exclusivamente para Desarrollador.', 'error');
-      return;
-    }
-    if (window.confirm('¿Confirmas restablecer el estado del simulador a los valores predeterminados?')) {
-      setFormData({
-        inversionInicial: 1000,
-        tasaInteres: 5,
-        periodos: 12,
-        tipo: 'compuesto',
-        aportacionMensual: 0
-      });
-      setAuditLogs([]);
-      showNotification('Estado del sistema restablecido por el Desarrollador.', 'success');
-    }
-  };
-
-  // Simulación inicial automática al cargar
-  useEffect(() => {
-    handleSubmit();
-  }, []);
 
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('es-MX', {
@@ -357,8 +278,8 @@ function SimuladorContent() {
                 : user?.rol === 'administrativo'
                 ? 'Panel de Gestión Administrativa • Monitoreo y Auditoría de Acciones'
                 : user?.rol === 'operador'
-                ? 'Consola de Operaciones y Captura de Simulaciones'
-                : 'Simulación y cálculo de proyecciones financieras'}
+                ? 'Consola de Operaciones • Música, Tienda y Pedidos de Comida'
+                : 'Música, tienda digital y pedidos de comida — todo simulado'}
             </p>
           </div>
         </div>
@@ -391,7 +312,7 @@ function SimuladorContent() {
                 </div>
                 <div>
                   <h4>Base de Datos Supabase</h4>
-                  <p>Control de lectura, escritura y depuración en <code>simulaciones</code></p>
+                  <p>Perfiles, roles y almacenamiento de fotos de usuario</p>
                 </div>
               </div>
 
@@ -400,8 +321,8 @@ function SimuladorContent() {
                   <Sliders size={20} color="var(--secondary)" />
                 </div>
                 <div>
-                  <h4>Edición de Parámetros Críticos</h4>
-                  <p>Ajuste maestro de algoritmos y tasas</p>
+                  <h4>Sistemas Simulados Activos</h4>
+                  <p>Música, Tienda Digital y Pedidos de Comida</p>
                 </div>
               </div>
 
@@ -410,8 +331,8 @@ function SimuladorContent() {
                   <Activity size={20} color="var(--accent)" />
                 </div>
                 <div>
-                  <h4>Auditoría de Cálculos</h4>
-                  <p>{auditLogs.length} simulaciones registradas</p>
+                  <h4>Auditoría de Actividad</h4>
+                  <p>{auditLogs.length} eventos registrados</p>
                 </div>
               </div>
             </div>
@@ -425,19 +346,10 @@ function SimuladorContent() {
                   className="btn-destructive"
                   onClick={handlePurgeAllLogs}
                   disabled={auditLogs.length === 0}
-                  title="Eliminar todas las simulaciones de la bitácora"
+                  title="Eliminar todos los registros de la bitácora"
                 >
                   <Trash2 size={15} />
                   <span>Vaciar Bitácora ({auditLogs.length})</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-destructive-secondary"
-                  onClick={handleResetTestDatabase}
-                  title="Restablecer el simulador a los valores originales"
-                >
-                  <RefreshCw size={15} />
-                  <span>Restablecer Parámetros</span>
                 </button>
               </div>
             </div>
@@ -459,8 +371,9 @@ function SimuladorContent() {
                         <th>Hora</th>
                         <th>Usuario</th>
                         <th>Rol</th>
-                        <th>Tipo</th>
-                        <th>Monto Final</th>
+                        <th>Actividad</th>
+                        <th>Detalle</th>
+                        <th>Monto</th>
                         <th style={{ textAlign: 'center' }}>Acciones</th>
                       </tr>
                     </thead>
@@ -471,6 +384,7 @@ function SimuladorContent() {
                           <td>{log.usuario}</td>
                           <td><span className="role-level-pill">{log.rol}</span></td>
                           <td><span className="role-level-pill">{log.tipo}</span></td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{log.detalle}</td>
                           <td className="gain-positive">{formatCurrency(log.monto)}</td>
                           <td style={{ textAlign: 'center' }}>
                             <button
@@ -513,7 +427,7 @@ function SimuladorContent() {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              Visualización de perfiles y auditoría de cálculos. Las acciones destructivas están restringidas al nivel Desarrollador.
+              Visualización de perfiles y auditoría de actividad en los sistemas simulados (tienda y comida). Las acciones destructivas están restringidas al nivel Desarrollador.
             </p>
 
             <div className="admin-grid-features">
@@ -523,7 +437,7 @@ function SimuladorContent() {
                 </div>
                 <div>
                   <h4>Base de Datos Supabase</h4>
-                  <p>Lectura activa de tabla <code>simulaciones</code></p>
+                  <p>Lectura activa de perfiles de usuario</p>
                 </div>
               </div>
 
@@ -533,7 +447,7 @@ function SimuladorContent() {
                 </div>
                 <div>
                   <h4>Auditoría de Actividad</h4>
-                  <p>{auditLogs.length} cálculos auditados</p>
+                  <p>{auditLogs.length} eventos auditados</p>
                 </div>
               </div>
 
@@ -551,7 +465,7 @@ function SimuladorContent() {
             {auditLogs.length > 0 && (
               <div className="admin-audit-table" style={{ marginTop: '1.25rem' }}>
                 <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                  Auditoría de cálculos en tiempo real:
+                  Auditoría de actividad en tiempo real:
                 </h4>
                 <div className="table-wrapper">
                   <table className="sim-table">
@@ -560,8 +474,9 @@ function SimuladorContent() {
                         <th>Hora</th>
                         <th>Usuario</th>
                         <th>Rol</th>
-                        <th>Tipo</th>
-                        <th>Monto Final</th>
+                        <th>Actividad</th>
+                        <th>Detalle</th>
+                        <th>Monto</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -571,6 +486,7 @@ function SimuladorContent() {
                           <td>{log.usuario}</td>
                           <td><span className="role-level-pill">{log.rol}</span></td>
                           <td><span className="role-level-pill">{log.tipo}</span></td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{log.detalle}</td>
                           <td className="gain-positive">{formatCurrency(log.monto)}</td>
                         </tr>
                       ))}
@@ -583,296 +499,30 @@ function SimuladorContent() {
         </ProtectedRoute>
       )}
 
-      {/* Main Simulator Grid */}
+      {/* Panel de Sistemas Simulados: submenú interno para elegir entre
+          Música, Tienda y Comida, todos con datos de muestra. */}
       {activeSection === 'simulador' && (
-        <div className="main-grid">
-          {/* Formulario */}
-          <div className="glass-card">
-            <div className="card-header">
-              <h2 className="card-title">
-                <Sparkles size={20} color="var(--primary-light)" />
-                Parámetros de Simulación
-              </h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="sim-form">
-              {/* Inversión Inicial */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="inversionInicial">
-                  <span>Inversión Inicial</span>
-                  <span className="form-hint">Monto de partida</span>
-                </label>
-                <div className="input-wrapper">
-                  <DollarSign size={18} className="input-icon" />
-                  <input
-                    id="inversionInicial"
-                    name="inversionInicial"
-                    type="number"
-                    min="0"
-                    step="100"
-                    className="form-input"
-                    value={formData.inversionInicial}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Aportación Mensual */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="aportacionMensual">
-                  <span>Aportación Periódica</span>
-                  <span className="form-hint">Opcional por período</span>
-                </label>
-                <div className="input-wrapper">
-                  <PiggyBank size={18} className="input-icon" />
-                  <input
-                    id="aportacionMensual"
-                    name="aportacionMensual"
-                    type="number"
-                    min="0"
-                    step="50"
-                    className="form-input"
-                    value={formData.aportacionMensual}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              {/* Tasa de Interés */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="tasaInteres">
-                  <span>Tasa de Interés (%)</span>
-                  <span className="form-hint">Ejemplo: 8%</span>
-                </label>
-                <div className="input-wrapper">
-                  <Percent size={18} className="input-icon" />
-                  <input
-                    id="tasaInteres"
-                    name="tasaInteres"
-                    type="number"
-                    min="0"
-                    max="1000"
-                    step="0.1"
-                    className="form-input"
-                    value={formData.tasaInteres}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Períodos */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="periodos">
-                  <span>Número de Períodos</span>
-                  <span className="form-hint">Meses / Ciclos</span>
-                </label>
-                <div className="input-wrapper">
-                  <Calendar size={18} className="input-icon" />
-                  <input
-                    id="periodos"
-                    name="periodos"
-                    type="number"
-                    min="1"
-                    max="120"
-                    className="form-input"
-                    value={formData.periodos}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Sistema / Tipo de Interés */}
-              <div className="form-group">
-                <label className="form-label">
-                  <span>Tipo de Cálculo</span>
-                </label>
-                <div className="system-toggle">
-                  <button
-                    type="button"
-                    className={`toggle-btn ${formData.tipo === 'compuesto' ? 'active' : ''}`}
-                    onClick={() => handleTipoChange('compuesto')}
-                  >
-                    Compuesto
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-btn ${formData.tipo === 'simple' ? 'active' : ''}`}
-                    onClick={() => handleTipoChange('simple')}
-                  >
-                    Simple
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button type="submit" className="btn-submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <RefreshCw size={18} className="spin" />
-                    Calculando...
-                  </>
-                ) : (
-                  <>
-                    <Activity size={18} />
-                    Calcular Simulación
-                  </>
-                )}
-              </button>
-            </form>
+        <div className="systems-panel">
+          <div className="systems-subnav">
+            {SISTEMAS.map((sistema) => {
+              const Icon = sistema.icon;
+              return (
+                <button
+                  key={sistema.id}
+                  type="button"
+                  className={`systems-subnav-tab ${activeSystem === sistema.id ? 'active' : ''}`}
+                  onClick={() => setActiveSystem(sistema.id)}
+                >
+                  <Icon size={16} />
+                  <span>{sistema.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Sección de Resultados */}
-          <div className="results-container">
-            {error && (
-              <div className="error-banner">
-                <AlertCircle size={20} />
-                <div>
-                  <strong>Error en la petición:</strong> {error}
-                </div>
-              </div>
-            )}
-
-            {resultado ? (
-              <>
-                {/* KPIs — el "Monto Final" es la respuesta que la persona
-                    vino a buscar, así que se destaca como tarjeta principal
-                    y las otras tres quedan como datos de apoyo, más
-                    pequeñas y calladas. Esa diferencia de tamaño es lo que
-                    le da jerarquía visual a la pantalla de resultados. */}
-                <div className="stat-hero-card">
-                  <div className="stat-hero-label">
-                    <CheckCircle2 size={15} /> Monto Final Proyectado
-                  </div>
-                  <div className="stat-hero-value">{formatCurrency(resultado.resumen.montoFinal)}</div>
-                  <div className="stat-hero-sub">Saldo acumulado al final del período</div>
-                </div>
-
-                <div className="stats-grid">
-                  <div className="stat-card" style={{ '--card-accent': 'var(--secondary)' }}>
-                    <div className="stat-label">Inversión Total</div>
-                    <div className="stat-value">
-                      {formatCurrency(resultado.resumen.inversionTotal)}
-                    </div>
-                    <div className="stat-badge" style={{ color: 'var(--secondary)' }}>
-                      <Layers size={13} /> Capital aportado
-                    </div>
-                  </div>
-
-                  <div className="stat-card" style={{ '--card-accent': 'var(--accent)' }}>
-                    <div className="stat-label">Intereses Generados</div>
-                    <div className="stat-value" style={{ color: 'var(--accent)' }}>
-                      +{formatCurrency(resultado.resumen.totalIntereses)}
-                    </div>
-                    <div className="stat-badge">
-                      <ArrowUpRight size={13} /> Ganancia neta
-                    </div>
-                  </div>
-
-                  <div className="stat-card" style={{ '--card-accent': 'var(--warning)' }}>
-                    <div className="stat-label">Rendimiento Total</div>
-                    <div className="stat-value" style={{ color: 'var(--warning)' }}>
-                      {resultado.resumen.gananciaPorcentual}%
-                    </div>
-                    <div className="stat-badge" style={{ color: 'var(--warning)' }}>
-                      <Percent size={13} /> ROI acumulado
-                    </div>
-                  </div>
-                </div>
-
-                {/* Barra de Proporción Capital vs Interés */}
-                <div className="progress-card">
-                  <div className="progress-header">
-                    <span>Composición del Capital Final</span>
-                    <span>{formatCurrency(resultado.resumen.montoFinal)}</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div
-                      className="progress-bar-fill-initial"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          (resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100
-                        )}%`
-                      }}
-                      title={`Capital Aportado: ${formatCurrency(resultado.resumen.inversionTotal)}`}
-                    />
-                    <div
-                      className="progress-bar-fill-interest"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          (resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100
-                        )}%`
-                      }}
-                      title={`Intereses: ${formatCurrency(resultado.resumen.totalIntereses)}`}
-                    />
-                  </div>
-                  <div className="progress-legend">
-                    <div className="legend-item">
-                      <div className="legend-dot" style={{ backgroundColor: 'var(--secondary)' }} />
-                      <span>
-                        Capital Aportado ({((resultado.resumen.inversionTotal / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="legend-item">
-                      <div className="legend-dot" style={{ backgroundColor: 'var(--accent)' }} />
-                      <span>
-                        Intereses ({((resultado.resumen.totalIntereses / resultado.resumen.montoFinal) * 100).toFixed(1)}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tabla de Desglose */}
-                <div className="glass-card">
-                  <div className="card-header">
-                    <h3 className="card-title">
-                      <Table size={18} color="var(--primary-light)" />
-                      Desglose por Período ({resultado.desglose.length} ciclos)
-                    </h3>
-                  </div>
-
-                  <div className="table-wrapper">
-                    <table className="sim-table">
-                      <thead>
-                        <tr>
-                          <th>Período</th>
-                          <th>Aportación</th>
-                          <th>Interés Generado</th>
-                          <th>Saldo Acumulado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {resultado.desglose.map((fila) => (
-                          <tr key={fila.periodo}>
-                            <td><strong>Ciclo #{fila.periodo}</strong></td>
-                            <td className="num-cell">{formatCurrency(fila.aportacion)}</td>
-                            <td className="num-cell gain-positive">+{formatCurrency(fila.interesGanado)}</td>
-                            <td className="num-cell" style={{ fontWeight: 600 }}>
-                              {formatCurrency(fila.saldoFinal)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            ) : (
-              !loading && (
-                <div className="glass-card empty-state">
-                  <div className="empty-icon">
-                    <Activity size={32} />
-                  </div>
-                  <h3>Sin resultados todavía</h3>
-                  <p>Ingresa los parámetros y haz clic en "Calcular Simulación" para ver la proyección.</p>
-                </div>
-              )
-            )}
-          </div>
+          {activeSystem === 'musica' && <MusicPlayer />}
+          {activeSystem === 'tienda' && <DigitalStore onActivity={registrarActividad} />}
+          {activeSystem === 'comida' && <FoodMenu onActivity={registrarActividad} />}
         </div>
       )}
     </div>

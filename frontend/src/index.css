@@ -1682,3 +1682,700 @@ h1, h2, h3, h4, h5, h6 {
     left: 1rem;
   }
 }
+
+/* ==========================================================================
+   Panel de Sistemas Simulados — submenú interno (Música / Tienda / Comida)
+   ========================================================================== */
+
+.systems-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.systems-subnav {
+  display: inline-flex;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-sm);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.systems-subnav-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.systems-subnav-tab:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+.systems-subnav-tab.active {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow);
+}
+
+/* ==========================================================================
+   Reproductor de música (simulado, estilo Spotify)
+   ========================================================================== */
+
+.music-player {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.music-simulated-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.music-playlist-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.music-playlist-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.music-playlist-tab:hover {
+  color: var(--text-primary);
+}
+
+.music-playlist-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.music-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.music-track-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.music-track-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.music-track-row.active {
+  background: var(--primary-glow);
+}
+
+.music-track-row.active .music-track-title {
+  color: var(--primary);
+}
+
+.music-track-art {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.music-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.music-eq span {
+  width: 3px;
+  background: #ffffff;
+  border-radius: 2px;
+  animation: music-eq-bounce 0.9s ease-in-out infinite;
+}
+
+.music-eq span:nth-child(1) { animation-delay: 0s; }
+.music-eq span:nth-child(2) { animation-delay: 0.2s; }
+.music-eq span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes music-eq-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 14px; }
+}
+
+.music-track-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.music-track-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-track-artist {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-like-btn {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.3rem;
+  display: flex;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.music-like-btn:hover {
+  transform: scale(1.15);
+}
+
+.music-like-btn.active {
+  color: var(--danger);
+}
+
+.music-track-duration {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.music-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: sticky;
+  bottom: 1rem;
+}
+
+.music-now-art {
+  width: 48px;
+  height: 48px;
+}
+
+.music-now-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.music-now-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.music-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.music-transport button {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.music-transport button:hover {
+  color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+.music-play-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--text-primary) !important;
+  color: var(--bg-surface) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.music-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.music-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.music-time:last-child {
+  text-align: right;
+}
+
+.music-progress-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.music-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 9999px;
+  transition: width 0.2s linear;
+}
+
+.music-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.music-volume-slider {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 760px) {
+  .music-now-playing {
+    flex-wrap: wrap;
+    position: static;
+  }
+  .music-now-info {
+    width: auto;
+  }
+  .music-volume {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Tienda digital y Menú de comida (estilo Amazon / Uber Eats-Didi)
+   ========================================================================== */
+
+.store-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) {
+  .store-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.store-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.store-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.85rem;
+  color: var(--text-muted);
+}
+
+.store-search input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.store-categories {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.store-category-pill {
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.store-category-pill:hover {
+  color: var(--text-primary);
+}
+
+.store-category-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.store-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.store-product-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.store-product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.store-product-thumb {
+  width: 100%;
+  height: 84px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.store-product-category {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.store-product-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.store-product-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.store-product-sales {
+  color: var(--text-muted);
+}
+
+.store-product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  gap: 0.5rem;
+}
+
+.store-product-price {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.store-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9999px;
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.store-add-btn:hover {
+  background: var(--primary-hover);
+}
+
+.store-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+  padding: 0.25rem 0.5rem;
+}
+
+.store-qty-stepper button {
+  border: none;
+  background: #ffffff;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+}
+
+.store-qty-stepper span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 14px;
+  text-align: center;
+}
+
+.store-empty-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.store-cart-card {
+  position: sticky;
+  top: 1rem;
+}
+
+.store-cart-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+}
+
+.store-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-glow);
+  color: #1a7a34;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+
+.store-confirmation strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.store-confirmation p {
+  margin: 0;
+  color: #1a7a34;
+  opacity: 0.85;
+}
+
+.food-eta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.store-cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.store-cart-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.store-cart-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.store-cart-item-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-cart-item-price {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.store-cart-remove {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.3rem;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.store-cart-remove:hover {
+  color: var(--danger);
+}
+
+.store-cart-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-bottom: 0.75rem;
+}
+
+.store-cart-total-final {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+/* Menú de comida: lista de platillos en filas (en vez de tarjetas en
+   cuadrícula), más parecido a una app de pedidos a domicilio. */
+.food-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.food-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.food-item-row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.food-item-thumb {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.food-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.food-item-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
