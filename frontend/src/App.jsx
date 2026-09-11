@@ -502,7 +502,7 @@ function SimuladorContent() {
         <ProtectedRoute allowedRoles={['administrativo']}>
           <div className="glass-card admin-dashboard-card" style={{ marginBottom: '2rem' }}>
             <div className="card-header">
-              <h2 className="card-title" style={{ color: '#818cf8' }}>
+              <h2 className="card-title" style={{ color: 'var(--primary)' }}>
                 <ShieldAlert size={22} />
                 Panel de Gestión y Monitoreo Administrativo (Nivel 2)
               </h2>
@@ -758,7 +758,7 @@ function SimuladorContent() {
 
                   <div className="stat-card" style={{ '--card-accent': 'var(--primary-light)' }}>
                     <div className="stat-label">Monto Final Proyectado</div>
-                    <div className="stat-value" style={{ color: '#ffffff' }}>
+                    <div className="stat-value" style={{ color: 'var(--text-primary)' }}>
                       {formatCurrency(resultado.resumen.montoFinal)}
                     </div>
                     <div className="stat-badge" style={{ color: 'var(--primary-light)' }}>

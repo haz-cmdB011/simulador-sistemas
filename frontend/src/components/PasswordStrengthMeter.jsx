@@ -32,11 +32,11 @@ export function evaluarSeguridad(password) {
   const score = Math.max(0, Math.min(4, puntos));
 
   const niveles = [
-    { label: 'Muy débil', color: '#ef4444' }, // rojo
-    { label: 'Débil', color: '#f97316' },     // naranja
-    { label: 'Aceptable', color: '#eab308' }, // amarillo
-    { label: 'Fuerte', color: '#84cc16' },    // verde claro
-    { label: 'Muy fuerte', color: '#22c55e' } // verde
+    { label: 'Muy débil', color: '#ff3b30' }, // rojo (systemRed)
+    { label: 'Débil', color: '#ff9500' },     // naranja (systemOrange)
+    { label: 'Aceptable', color: '#ffcc00' }, // amarillo (systemYellow)
+    { label: 'Fuerte', color: '#8bc34a' },    // verde claro
+    { label: 'Muy fuerte', color: '#34c759' } // verde (systemGreen)
   ];
 
   return { score, ...niveles[score] };
@@ -61,7 +61,7 @@ export const PasswordStrengthMeter = ({ password }) => {
           height: '6px',
           width: '100%',
           borderRadius: '999px',
-          background: 'rgba(255,255,255,0.12)',
+          background: 'rgba(0,0,0,0.08)',
           overflow: 'hidden'
         }}
       >

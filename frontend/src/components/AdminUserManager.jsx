@@ -287,7 +287,7 @@ export const AdminUserManager = () => {
           style={{
             marginBottom: '1.5rem',
             padding: '1.25rem',
-            border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '12px'
           }}
         >
