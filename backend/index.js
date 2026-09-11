@@ -18,19 +18,43 @@ const PORT = process.env.PORT || 3000;
 // de entorno FRONTEND_URL si el sitio cambia de dominio.
 const ORIGENES_PERMITIDOS = [
   'https://simulador-sistemas-becarios2.vercel.app',
+  'https://simulador-sistemas.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
+// Además de la lista fija, se permite cualquier subdominio *.vercel.app:
+// Vercel genera una URL distinta para cada deployment (producción, previews
+// de cada rama/PR), así que fijar una sola URL rompe CORS en cuanto cambia
+// el dominio de producción o se abre un preview. Las rutas siguen protegidas
+// por JWT, así que esto no expone datos, solo evita bloqueos por dominio.
+function esOrigenPermitido(origin) {
+  if (ORIGENES_PERMITIDOS.includes(origin)) return true;
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return protocol === 'https:' && hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
     // Sin header Origin (curl, Postman, servidor a servidor) se permite —
     // no es el caso que este CORS protege.
-    if (!origin || ORIGENES_PERMITIDOS.includes(origin)) {
+    if (!origin || esOrigenPermitido(origin)) {
       return callback(null, true);
     }
-    return callback(new Error('Origen no permitido por CORS'));
+    console.warn('[CORS] Origen rechazado:', origin);
+    // Importante: NO pasar un Error() a callback aquí. La librería 'cors'
+    // reenvía ese error a next(err), y como no había un manejador de errores
+    // definido, Express respondía con un 500 genérico (parecía que el
+    // servidor estaba caído, cuando en realidad solo era un origen
+    // rechazado). callback(null, false) simplemente omite las cabeceras
+    // CORS, así el navegador bloquea la respuesta como "CORS error", que es
+    // el comportamiento correcto y esperado.
+    return callback(null, false);
   }
 }));
 app.use(express.json());
@@ -46,7 +70,10 @@ app.get('/api/health', (req, res) => {
     supabaseConnected: !!supabase,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    // Marca de versión para confirmar en /api/health que Render ya desplegó
+    // este código (útil para depurar despliegues que tardan o fallan).
+    corsVersion: 'v2-wildcard-vercel'
   });
 });
 
