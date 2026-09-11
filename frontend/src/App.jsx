@@ -737,7 +737,19 @@ function SimuladorContent() {
 
             {resultado ? (
               <>
-                {/* KPIs */}
+                {/* KPIs — el "Monto Final" es la respuesta que la persona
+                    vino a buscar, así que se destaca como tarjeta principal
+                    y las otras tres quedan como datos de apoyo, más
+                    pequeñas y calladas. Esa diferencia de tamaño es lo que
+                    le da jerarquía visual a la pantalla de resultados. */}
+                <div className="stat-hero-card">
+                  <div className="stat-hero-label">
+                    <CheckCircle2 size={15} /> Monto Final Proyectado
+                  </div>
+                  <div className="stat-hero-value">{formatCurrency(resultado.resumen.montoFinal)}</div>
+                  <div className="stat-hero-sub">Saldo acumulado al final del período</div>
+                </div>
+
                 <div className="stats-grid">
                   <div className="stat-card" style={{ '--card-accent': 'var(--secondary)' }}>
                     <div className="stat-label">Inversión Total</div>
@@ -756,16 +768,6 @@ function SimuladorContent() {
                     </div>
                     <div className="stat-badge">
                       <ArrowUpRight size={13} /> Ganancia neta
-                    </div>
-                  </div>
-
-                  <div className="stat-card" style={{ '--card-accent': 'var(--primary-light)' }}>
-                    <div className="stat-label">Monto Final Proyectado</div>
-                    <div className="stat-value" style={{ color: 'var(--text-primary)' }}>
-                      {formatCurrency(resultado.resumen.montoFinal)}
-                    </div>
-                    <div className="stat-badge" style={{ color: 'var(--primary-light)' }}>
-                      <CheckCircle2 size={13} /> Saldo acumulado
                     </div>
                   </div>
 

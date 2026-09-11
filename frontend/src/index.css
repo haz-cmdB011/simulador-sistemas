@@ -407,6 +407,61 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* KPI Stat Cards */
+/* Tarjeta "hero": destaca el número que más le importa a la persona (el
+   monto final) por encima de los datos de apoyo, para que la pantalla de
+   resultados tenga un punto de atención claro en vez de cuatro cifras que
+   compiten entre sí por la misma atención. */
+.stat-hero-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, white) 0%, rgba(255, 255, 255, 0.5) 65%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 1rem;
+}
+
+.stat-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(120% 65% at 10% 0%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 55%);
+  pointer-events: none;
+}
+
+.stat-hero-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.stat-hero-value {
+  font-size: clamp(2.1rem, 5vw, 2.75rem);
+  font-weight: 800;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.stat-hero-sub {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -451,7 +506,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .stat-value {
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-primary);
   font-family: var(--font-heading);
@@ -758,14 +813,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Top Session Bar */
+/* Es la barra de "cromo" fija de la app (sesión, menú, colores) — se le
+   baja la sombra a propósito para que quede visualmente detrás del
+   contenido principal (el simulador y sus resultados), en vez de competir
+   con él en importancia. */
 .user-session-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 1rem 1.5rem;
+  padding: 0.85rem 1.5rem;
   margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm) !important;
 }
 
 .user-profile-info {
@@ -1241,18 +1301,23 @@ h1, h2, h3, h4, h5, h6 {
    Panel de personalización de color ("Colores")
    ========================================================================== */
 
+/* A propósito NO lleva backdrop-filter ni fondo translúcido: es el único
+   panel "sólido" de toda la interfaz. Si fuera de vidrio, mientras el
+   usuario elige un color vería ese mismo color asomándose a través del
+   fondo del panel (porque las manchas que está editando quedan justo
+   detrás), lo que hacía muy difícil juzgar bien el color elegido. Con un
+   fondo opaco el panel de colores siempre se lee igual de claro, sin
+   importar qué paleta esté activa. */
 .theme-panel {
   position: absolute;
   top: calc(100% + 0.6rem);
   right: 0;
   width: 300px;
   max-width: calc(100vw - 2.5rem);
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--border-subtle);
+  background: #fbfbfc;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: var(--glass-filter-strong);
-  -webkit-backdrop-filter: var(--glass-filter-strong);
   padding: 1rem;
   z-index: 200;
 
@@ -1318,12 +1383,19 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.4rem;
 }
 
+.theme-panel-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 0.85rem;
+}
+
 .theme-preset-swatch {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: var(--shadow-sm);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), var(--shadow-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1340,20 +1412,25 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 2px var(--primary), var(--shadow-sm);
 }
 
-.theme-presets-caption {
+.theme-section-caption {
   font-size: 0.68rem;
   color: var(--text-muted);
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.theme-section-caption-spaced {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .theme-fields-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.6rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-subtle);
+  gap: 0.7rem 0.5rem;
 }
 
 .theme-field {
@@ -1369,8 +1446,8 @@ h1, h2, h3, h4, h5, h6 {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: var(--shadow-sm);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), var(--shadow-sm);
   overflow: hidden;
   transition: transform var(--transition-spring);
 }
@@ -1395,4 +1472,26 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
   text-align: center;
   line-height: 1.15;
+}
+
+.theme-done-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.6rem;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-done-btn:hover {
+  background: var(--primary-hover);
 }
