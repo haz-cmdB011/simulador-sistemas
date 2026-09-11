@@ -204,8 +204,8 @@ app.post('/api/admin/usuarios', requireDesarrollador, async (req, res) => {
     if (!email || !password || !nombre) {
       return res.status(400).json({ error: 'Correo, contraseña y nombre son obligatorios.' });
     }
-    if (String(password).length < 6) {
-      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
     }
     if (!Object.prototype.hasOwnProperty.call(ROLES_ASIGNABLES, rol)) {
       return res.status(400).json({
@@ -314,8 +314,8 @@ app.post('/api/admin/usuarios/:id/reset-password', requireDesarrollador, async (
     const { id } = req.params;
     const { nuevaContrasena } = req.body;
 
-    if (!nuevaContrasena || String(nuevaContrasena).length < 6) {
-      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    if (!nuevaContrasena || String(nuevaContrasena).length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
     }
 
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {

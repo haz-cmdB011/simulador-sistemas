@@ -10,6 +10,9 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
+
+const LONGITUD_MINIMA_PASSWORD = 8;
 
 /**
  * Traduce los mensajes de error de Supabase Auth a español con instrucciones claras.
@@ -41,7 +44,7 @@ const getErrorMessage = (error) => {
     return 'No se pudo conectar con el servidor de autenticación. Verifica tu conexión a internet.';
   }
   if (msg.includes('password') && msg.includes('at least')) {
-    return 'La contraseña debe tener al menos 6 caracteres.';
+    return `La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres.`;
   }
   if (msg.includes('already registered') || msg.includes('already been registered')) {
     return 'Este correo electrónico ya está registrado. Intenta iniciar sesión en su lugar.';
@@ -75,6 +78,12 @@ export const Login = () => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+
+    if (isRegister && password.length < LONGITUD_MINIMA_PASSWORD) {
+      setError(`La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -217,8 +226,10 @@ export const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={isRegister ? LONGITUD_MINIMA_PASSWORD : undefined}
                 />
               </div>
+              {isRegister && <PasswordStrengthMeter password={password} />}
             </div>
           )}
 

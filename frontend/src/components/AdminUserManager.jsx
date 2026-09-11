@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Users, KeyRound, RefreshCw, AlertCircle, CheckCircle2, X, UserPlus, Save } from 'lucide-react';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 const API_URL = "https://simulador-backend-pt4w.onrender.com";
+const LONGITUD_MINIMA_PASSWORD = 8;
 
 // Roles que el Desarrollador puede asignar desde este panel. El rol
 // 'desarrollador' (Nivel 1) es exclusivo del Creador y no aparece aquí.
@@ -95,8 +97,8 @@ export const AdminUserManager = () => {
   const crearUsuario = async (e) => {
     e.preventDefault();
 
-    if (nuevaPasswordCrear.length < 6) {
-      showNotification('La contraseña debe tener al menos 6 caracteres.', 'error');
+    if (nuevaPasswordCrear.length < LONGITUD_MINIMA_PASSWORD) {
+      showNotification(`La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres.`, 'error');
       return;
     }
 
@@ -170,8 +172,8 @@ export const AdminUserManager = () => {
   const confirmarReset = async (e) => {
     e.preventDefault();
 
-    if (nuevaContrasena.length < 6) {
-      showNotification('La contraseña debe tener al menos 6 caracteres.', 'error');
+    if (nuevaContrasena.length < LONGITUD_MINIMA_PASSWORD) {
+      showNotification(`La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres.`, 'error');
       return;
     }
     if (nuevaContrasena !== confirmarContrasena) {
@@ -296,10 +298,11 @@ export const AdminUserManager = () => {
                 className="form-input"
                 value={nuevaPasswordCrear}
                 onChange={(e) => setNuevaPasswordCrear(e.target.value)}
-                minLength={6}
+                minLength={LONGITUD_MINIMA_PASSWORD}
                 required
               />
             </div>
+            <PasswordStrengthMeter password={nuevaPasswordCrear} />
           </div>
 
           <div className="form-group">
@@ -441,10 +444,11 @@ export const AdminUserManager = () => {
                     className="form-input"
                     value={nuevaContrasena}
                     onChange={(e) => setNuevaContrasena(e.target.value)}
-                    minLength={6}
+                    minLength={LONGITUD_MINIMA_PASSWORD}
                     required
                   />
                 </div>
+                <PasswordStrengthMeter password={nuevaContrasena} />
               </div>
 
               <div className="form-group">
@@ -457,7 +461,7 @@ export const AdminUserManager = () => {
                     className="form-input"
                     value={confirmarContrasena}
                     onChange={(e) => setConfirmarContrasena(e.target.value)}
-                    minLength={6}
+                    minLength={LONGITUD_MINIMA_PASSWORD}
                     required
                   />
                 </div>

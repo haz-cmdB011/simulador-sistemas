@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { KeyRound, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
+
+const LONGITUD_MINIMA_PASSWORD = 8;
 
 /**
  * Se muestra cuando el usuario llega a la app desde el enlace de recuperación
@@ -18,8 +21,8 @@ export const ResetPassword = () => {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (password.length < LONGITUD_MINIMA_PASSWORD) {
+      setError(`La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -71,9 +74,10 @@ export const ResetPassword = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={LONGITUD_MINIMA_PASSWORD}
               />
             </div>
+            <PasswordStrengthMeter password={password} />
           </div>
 
           <div className="form-group">
@@ -90,7 +94,7 @@ export const ResetPassword = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={LONGITUD_MINIMA_PASSWORD}
               />
             </div>
           </div>
