@@ -2,17 +2,18 @@
   --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-  /* Color Palette — estilo Apple: neutros, blancos suaves, azul de sistema */
-  --bg-main: #f5f5f7;
+  /* Color Palette — "Liquid Glass": vidrio translúcido, refracción de luz y
+     color detrás del panel, al estilo visionOS / iOS 18+ */
+  --bg-main: #eef0f3;
   --bg-surface: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.78);
-  --bg-card-hover: rgba(255, 255, 255, 0.92);
-  --bg-glass: rgba(0, 0, 0, 0.035);
-  --bg-input: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.55);
+  --bg-card-hover: rgba(255, 255, 255, 0.68);
+  --bg-glass: rgba(255, 255, 255, 0.35);
+  --bg-input: rgba(255, 255, 255, 0.6);
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.5);
   --border-focus: #0071e3;
-  --border-glow: rgba(0, 113, 227, 0.18);
+  --border-glow: rgba(0, 113, 227, 0.2);
 
   --primary: #0071e3;
   --primary-hover: #0077ed;
@@ -32,15 +33,22 @@
   --text-secondary: #6e6e73;
   --text-muted: #86868b;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 8px 22px rgba(0, 113, 227, 0.28);
+  /* Filtro de vidrio: blur + saturación + brillo, como un panel real de
+     Liquid Glass que distorsiona y realza lo que tiene detrás */
+  --glass-filter: blur(28px) saturate(190%) brightness(1.08);
+  --glass-filter-strong: blur(40px) saturate(200%) brightness(1.1);
 
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 30px;
+  /* Sombra compuesta: sombra exterior suave + brillo interior en el borde
+     superior (el "reflejo" del vidrio) + sombra interior tenue abajo */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --shadow-md: 0 8px 28px rgba(31, 38, 70, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.65), inset 0 -1px 1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 20px 50px rgba(31, 38, 70, 0.16), inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 10px 24px rgba(0, 113, 227, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
+  --radius-xl: 36px;
 
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -62,9 +70,29 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image:
-    radial-gradient(circle at 15% 10%, rgba(0, 113, 227, 0.06) 0%, transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(94, 92, 230, 0.05) 0%, transparent 45%);
+    radial-gradient(circle at 8% 8%, rgba(0, 113, 227, 0.35) 0%, transparent 38%),
+    radial-gradient(circle at 92% 15%, rgba(94, 92, 230, 0.3) 0%, transparent 40%),
+    radial-gradient(circle at 15% 90%, rgba(52, 199, 89, 0.22) 0%, transparent 40%),
+    radial-gradient(circle at 88% 92%, rgba(255, 149, 0, 0.2) 0%, transparent 38%),
+    radial-gradient(circle at 50% 50%, rgba(219, 39, 119, 0.12) 0%, transparent 55%);
   background-attachment: fixed;
+}
+
+/* Manchas de color de fondo: le dan al vidrio algo vivo que refractar. Se
+   quedan fijas detrás de todo (z-index -1) mientras el contenido se desplaza
+   por encima, como en las páginas de producto de Apple con Liquid Glass. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(41, 151, 255, 0.4) 0%, transparent 32%),
+    radial-gradient(circle at 80% 25%, rgba(94, 92, 230, 0.35) 0%, transparent 34%),
+    radial-gradient(circle at 30% 80%, rgba(52, 199, 89, 0.3) 0%, transparent 32%),
+    radial-gradient(circle at 85% 85%, rgba(255, 149, 0, 0.28) 0%, transparent 32%);
+  filter: blur(60px);
+  opacity: 0.7;
 }
 
 /* Base Typography */
@@ -172,20 +200,35 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Glass Card — efecto vidrio esmerilado claro, estilo macOS/iOS */
+/* Glass Card — panel de "Liquid Glass": vidrio translúcido con reflejo
+   especular en la parte superior, como los paneles de visionOS/iOS 18+ */
 .glass-card {
+  position: relative;
+  isolation: isolate;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   box-shadow: var(--shadow-md);
-  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+  overflow: hidden;
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal);
+}
+
+/* Reflejo especular: un arco de luz sutil en la esquina superior izquierda,
+   como la refracción que se ve en un panel de vidrio real */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120% 60% at 15% 0%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%);
+  pointer-events: none;
 }
 
 .glass-card:hover {
-  border-color: rgba(0, 0, 0, 0.12);
+  border-color: rgba(255, 255, 255, 0.65);
   box-shadow: var(--shadow-lg);
 }
 
@@ -298,17 +341,17 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-sm);
 }
 
-/* Submit Button */
+/* Submit Button — pastilla de vidrio con tinte azul y brillo superior */
 .btn-submit {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
   padding: 0.9rem 1.5rem;
-  background: var(--primary);
+  background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary) 55%, var(--primary-hover) 100%);
   color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 9999px;
   font-family: var(--font-heading);
   font-size: 1rem;
   font-weight: 600;
@@ -319,9 +362,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(0, 113, 227, 0.32);
+  box-shadow: 0 12px 28px rgba(0, 113, 227, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .btn-submit:active:not(:disabled) {
@@ -355,8 +397,15 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.25rem;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .stat-card::before {
@@ -555,6 +604,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .auth-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   width: 100%;
   max-width: 480px;
   padding: 2.25rem;
@@ -562,8 +614,17 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: var(--glass-filter-strong);
+  -webkit-backdrop-filter: var(--glass-filter-strong);
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120% 55% at 20% 0%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 55%);
+  pointer-events: none;
 }
 
 .auth-header {
@@ -768,11 +829,13 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
-  background: rgba(255, 59, 48, 0.08);
-  border: 1px solid rgba(255, 59, 48, 0.22);
+  padding: 0.45rem 0.95rem;
+  background: rgba(255, 59, 48, 0.1);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  border: 1px solid rgba(255, 59, 48, 0.25);
   color: #c81e13;
-  border-radius: var(--radius-md);
+  border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -794,16 +857,19 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.9rem;
+  padding: 0.5rem 1rem;
   background: var(--bg-glass);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  border-radius: var(--radius-md);
+  border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-menu-trigger:hover {
@@ -828,8 +894,8 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   padding: 0.4rem;
   z-index: 50;
   display: flex;
@@ -886,10 +952,10 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Developer Dashboard Section (Nivel 1) */
+/* Developer Dashboard Section (Nivel 1) — vidrio con tinte rosa */
 .dev-dashboard-card {
-  border-color: rgba(219, 39, 119, 0.22);
-  background: linear-gradient(135deg, rgba(253, 242, 248, 0.9) 0%, rgba(255, 255, 255, 0.85) 60%);
+  border-color: rgba(219, 39, 119, 0.28);
+  background: linear-gradient(135deg, rgba(255, 240, 249, 0.55) 0%, rgba(255, 255, 255, 0.45) 60%);
   box-shadow: var(--shadow-md);
 }
 
@@ -1021,8 +1087,8 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.875rem;
   font-weight: 600;
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   animation: slideIn 0.3s ease;
 }
 
@@ -1051,8 +1117,8 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Admin Dashboard Section (Nivel 2) */
 .admin-dashboard-card {
-  border-color: rgba(94, 92, 230, 0.2);
-  background: linear-gradient(135deg, rgba(245, 245, 253, 0.9) 0%, rgba(255, 255, 255, 0.85) 60%);
+  border-color: rgba(94, 92, 230, 0.25);
+  background: linear-gradient(135deg, rgba(240, 240, 253, 0.55) 0%, rgba(255, 255, 255, 0.45) 60%);
 }
 
 .admin-status-tag {
